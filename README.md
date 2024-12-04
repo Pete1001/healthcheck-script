@@ -1,8 +1,9 @@
 
-# Health Check Script
+# Automated Pre / Post Diff Check Script
+Script to gather pre check output from network devices using SSH, then later gather post checks output and compare results.
 
 ## Overview
-This script automates Pre and Post health checks for network devices, specifically for Cisco 2948 and Cisco CSR switches. 
+This script automates Pre and Post health checks for network devices.
 It uses SSH to connect to the device, runs specified commands, saves the outputs, and provides a comparison between Pre and Post health checks.
 
 ---
@@ -10,10 +11,10 @@ It uses SSH to connect to the device, runs specified commands, saves the outputs
 ## Features
 1. **Interactive Menu**:
    - Allows users to select between Pre and Post health checks.
-   - Lets users choose the type of device: Cisco 2948 or Cisco CSR.
+   - Lets users choose the type of device.
 
 2. **Automated SSH Command Execution**:
-   - Reads commands from pre-defined files (`2948.txt` or `CSR.txt`).
+   - Reads commands from pre-defined files (`CC_49xx.txt` or `CC_65xx-76xx.txt`).
    - Connects to the device using SSH and executes the commands.
 
 3. **Output Management**:
@@ -30,23 +31,23 @@ It uses SSH to connect to the device, runs specified commands, saves the outputs
 - **Python 3.x**
 - **SSH and sshpass**: Ensure `sshpass` is installed for password-based SSH.
 - **Network Access**: The script requires access to the network devices.
-- **Command Files**: Provide device-specific command files (`2948.txt` and `CSR.txt`) with one command per line.
+- **Command Files**: Provide device-specific command files (`CC_49xx.txt` and `CC_65xx-76xx.txt`) with one command per line.
 
 ---
 
 ## File Descriptions
 ### Command Files
-- **2948.txt**: Contains commands for Cisco 2948 switches.
-- **CSR.txt**: Contains commands for Cisco CSR switches.
+- **CC_49xx.txt**: Contains commands for Cisco 2948 switches.
+- **CC_65xx-76xx.txt**: Contains commands for Cisco CSR switches.
 
-Example content for `2948.txt`:
+Example content for `CC_49xx.txt`:
 ```
 show version
 show ip interface brief
 show running-config
 ```
 
-Example content for `CSR.txt`:
+Example content for `CC_65xx-76xx.txt`:
 ```
 show version
 show interfaces description

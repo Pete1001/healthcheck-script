@@ -1,0 +1,19 @@
+term len 0
+show run | i hostname
+show clock
+
+show fabric utilization
+show environment alarm
+show proc cpu hist
+show interface status | inc connected
+show int status | count connected
+show int status | count notconnect
+show vlan | count active
+show run | count .
+show mac address-table | count .
+show ip arp | count .
+show ip pim rp | count .
+show ip pim neighbor | count [0-9,1-3]]
+show ipv6 pim rp | count .
+show ipv6 pim neighbor | count [0-9a-f,1-4]:
+show redundancy counters

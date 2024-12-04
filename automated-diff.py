@@ -1,5 +1,33 @@
-
 #!/usr/bin/env python3
+'''
+# automated-diff.py
+#
+# Author:      Pete Link
+# Date:        December 2024
+# Description: Script to gather pre check output from network devices using SSH, then later gather post checks output and compare results.
+
+## Contact
+For questions or suggestions, feel free to open an issue or contact me via [GitHub](https://github.com/Pete1001).
+
+ Use:        python3 `filename`
+
+ Current directory must containt the files from the menu; e.g.:
+    -CC_49xx.txt
+    -CC_65xx-76xx.txt
+
+    -the file should contain all commands from the Mandatory Pre/Post Check Verification section including the following:
+        term len 0
+        show run | i hostname
+        show clock
+    
+hosts.txt must be named "hosts.txt".  The file must be located in the current directory and must be formatted in the following way:
+    -one hostname or IP Address per line with no commas, quotes or spaces.
+    
+    -hosts.txt example:
+
+        92.168.0.1
+        192.168.0.2
+'''
 
 import os
 import subprocess
@@ -7,7 +35,7 @@ from getpass import getpass
 import difflib
 
 def main():
-    print("Health Check Script")
+    print("Automated Pre and Post Diff Check Script")
     print("===================")
     
     # Prompt for Pre or Post health check
@@ -19,20 +47,20 @@ def main():
 
     # Equipment type selection
     print("Select the equipment type:")
-    print("1. Cisco 2948")
-    print("2. Cisco CSR")
+    print("1. Cisco Catalyst 49xx")
+    print("2. Cisco Catalyst 65xx or 76xx")
     equipment_choice = input("Enter your choice (1/2): ").strip()
     
     if equipment_choice == "1":
-        device_name = "Cisco 2948"
-        device_file = "2948.txt"
-        pre_file = "2948.pre"
-        post_file = "2948.aft"
+        device_name = "Cisco Catalyst 49xx"
+        device_file = "CC_49xx.txt"
+        pre_file = "CC_49xx.pre"
+        post_file = "CC_49xx.aft"
     elif equipment_choice == "2":
-        device_name = "Cisco CSR"
-        device_file = "CSR.txt"
-        pre_file = "CSR.pre"
-        post_file = "CSR.aft"
+        device_name = "Cisco Catalyst 65xx or 76xx"
+        device_file = "CC_65xx-76xx.txt"
+        pre_file = "CC_65xx-76xx.pre"
+        post_file = "CC_65xx-76xx.aft"
     else:
         print("Invalid choice. Please enter 1 or 2.")
         return
@@ -61,9 +89,7 @@ def main():
                      f"{username}@{host}", command],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                 )
-                out.write(f"Command: {command}
-{result.stdout}
-")
+                out.write(f"Command: {command}{result.stdout}")
             except Exception as e:
                 print(f"Error executing command '{command}': {e}")
 
