@@ -28,6 +28,7 @@ hosts.txt must be named "hosts.txt".  The file must be located in the current di
         92.168.0.1
         192.168.0.2
 '''
+#!/usr/bin/env python3
 import os
 import logging
 import difflib
@@ -44,7 +45,7 @@ os.system('clear')
 def ssh_command(host, username, password, commands, output_file):
     """
     Execute commands on a host via SSH and save output to a file.
-    Ensures the session is active and ready for command execution.
+    Adds a separator between each command's output.
     """
     try:
         logger.info(f"Attempting to connect to {host}...")
@@ -70,7 +71,9 @@ def ssh_command(host, username, password, commands, output_file):
                 time.sleep(2)  # Wait for the command to execute
                 if ssh_shell.recv_ready():
                     output = ssh_shell.recv(65535).decode('utf-8')
-                    out.write(f"\nCommand: {command}\n{output}")
+                    # Add command output and separator
+                    out.write(f"\nCommand: {command}\n{output}\n")
+                    out.write(f"{'-' * 50}\n")  # Add separator line
                     logger.info(f"[{host}] Command executed successfully.")
                 else:
                     logger.warning(f"[{host}] No output received for command: {command}")
