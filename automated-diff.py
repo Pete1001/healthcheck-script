@@ -28,6 +28,7 @@ hosts.txt must be named "hosts.txt".  The file must be located in the current di
         92.168.0.1
         192.168.0.2
 '''
+
 import os
 import subprocess
 from getpass import getpass
@@ -40,6 +41,7 @@ os.system('clear')
 def ssh_command(host, username, password, commands, output_file):
     """
     Execute commands on a host via SSH and save output to a file.
+    Returns an error message if the host is not reachable or commands fail.
     """
     try:
         # Establish SSH connection
@@ -61,27 +63,25 @@ def ssh_command(host, username, password, commands, output_file):
                 if error:
                     out.write(f"\nError: {command}\n{error}")
         ssh.close()
+        return None  # No errors
     except Exception as e:
-        print(f"Error connecting to {host}: {e}")
+        return str(e)  # Return error message
 
 def main():
-    print("Automated Pre and Post Diff Check Script")
-    print("=========================================================")
+    print("\nAutomated Pre and Post Diff Check Script")
+    print("=" * 60)
 
     # Prompt for Pre or Post health check
-    health_check_type = input("Are you doing a Pre or Post Health check? (Pre/Post): ").strip().lower()
+    health_check_type = input("\nAre you doing a Pre or Post Health check? (Pre/Post): ").strip().lower()
     if health_check_type not in ["pre", "post"]:
-        print("Invalid choice. Please enter 'Pre' or 'Post'.")
+        print("\nInvalid choice. Please enter 'Pre' or 'Post'.")
         return
 
     # Equipment type selection
-    print('')
-    print("Select the equipment type:")
-    print('')
+    print("\nSelect the equipment type:")
     print("1. Cisco Catalyst 49xx")
     print("2. Cisco Catalyst 65xx or 76xx")
-    print('')
-    equipment_choice = input("Enter your choice (1/2): ").strip()
+    equipment_choice = input("\nEnter your choice (1/2): ").strip()
     
     if equipment_choice == "1":
         device_file = "CC_49xx.txt"
@@ -90,49 +90,60 @@ def main():
         device_file = "CC_65xx-76xx.txt"
         file_suffix = "65xx-76xx"
     else:
-        print("Invalid choice. Please enter 1 or 2.")
+        print("\nInvalid choice. Please enter 1 or 2.")
         return
 
     # Read commands from file
     if not os.path.exists(device_file):
-        print(f"Error: {device_file} not found.")
+        print(f"\nError: {device_file} not found.")
         return
 
     with open(device_file, "r") as f:
         commands = f.read().splitlines()
 
     # SSH credentials
-    username = input("Enter your SSH username: ").strip()
+    username = input("\nEnter your SSH username: ").strip()
     password = getpass("Enter your SSH password: ")
 
     # Read hosts from hosts.txt
     hosts_file = "hosts.txt"
     if not os.path.exists(hosts_file):
-        print(f"Error: {hosts_file} not found.")
+        print(f"\nError: {hosts_file} not found.")
         return
 
     with open(hosts_file, "r") as hf:
         hosts = [line.strip() for line in hf if line.strip()]
 
-    # Track processed files
+    # Track processed files and errors
     updated_files = []
+    unreachable_hosts = []
+
+    print("\nStarting health check for all hosts...\n")
+    print("=" * 60)
 
     # Execute commands on each host
     for host in hosts:
+        print(f"\nProcessing host: {host}")
+        print("-" * 60)
         output_file = f"{host}.{file_suffix}.{health_check_type}"
-        ssh_command(host, username, password, commands, output_file)
-        print(f"Output for {host} saved to {output_file}")
-        updated_files.append(output_file)
+        error = ssh_command(host, username, password, commands, output_file)
+        if error:
+            print(f"\n[ERROR] Could not process host {host}. Error: {error}")
+            unreachable_hosts.append(host)
+        else:
+            print(f"\nOutput for {host} saved to {output_file}")
+            updated_files.append(output_file)
 
     # Perform diff for Post health check
     if health_check_type == "post":
+        print("\nPerforming diff for post health check...\n")
         for host in hosts:
             pre_file = f"{host}.{file_suffix}.pre"
             post_file = f"{host}.{file_suffix}.aft"
             diff_output_file = f"{host}.{file_suffix}.out"
 
             if not os.path.exists(pre_file):
-                print(f"Error: {pre_file} not found for {host}. Skipping diff.")
+                print(f"\n[WARNING] {pre_file} not found for {host}. Skipping diff.")
                 continue
 
             with open(pre_file, "r") as pre, open(post_file, "r") as post, open(diff_output_file, "w") as diff_out:
@@ -140,19 +151,29 @@ def main():
                 post_lines = post.readlines()
                 diff = difflib.unified_diff(pre_lines, post_lines, fromfile=pre_file, tofile=post_file)
                 diff_output = "".join(diff)
-                print(f"Difference for {host}:")
-                print(diff_output)
+                if diff_output:
+                    print(f"\n[INFO] Difference found for {host}.")
+                    print(diff_output)
+                else:
+                    print(f"\n[INFO] No differences found for {host}.")
                 diff_out.write(diff_output)
                 updated_files.append(diff_output_file)
 
-            print(f"Diff for {host} saved to {diff_output_file}")
+            print(f"\nDiff for {host} saved to {diff_output_file}")
 
     # Summary of operations
     print("\nAll done! Have a nice day!")
-    print("=========================================================")
-    print("Summary of files updated:")
+    print("=" * 60)
+    print("\nSummary of updated files:")
     for file in updated_files:
         print(f" - {file}")
+
+    if unreachable_hosts:
+        print("\nSummary of unreachable hosts:")
+        for host in unreachable_hosts:
+            print(f" - {host}")
+    else:
+        print("\nAll hosts were processed successfully!")
 
 if __name__ == "__main__":
     main()
