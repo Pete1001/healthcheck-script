@@ -28,13 +28,17 @@ hosts.txt must be named "hosts.txt".  The file must be located in the current di
         92.168.0.1
         192.168.0.2
 '''
-
+#!/usr/bin/env python3
 import os
-import subprocess
-from getpass import getpass
+import logging
 import difflib
 import paramiko
 import time
+from getpass import getpass
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 os.system('clear')
 
@@ -44,16 +48,17 @@ def ssh_command(host, username, password, commands, output_file):
     Returns an error message if the host is not reachable or commands fail.
     """
     try:
-        # Establish SSH connection
+        logger.info(f"Attempting to connect to {host}...")
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(host, username=username, password=password, timeout=10)
+        ssh.connect(host, username=username, password=password, timeout=20)
+        logger.info(f"Successfully connected to {host}.")
 
         # Execute commands
         with open(output_file, "a") as out:
             out.write(f"\n--- Output from {host} ---\n")
             for command in commands:
-                print(f"[{host}] Running command: {command}")
+                logger.info(f"[{host}] Running command: {command}")
                 stdin, stdout, stderr = ssh.exec_command(command)
                 time.sleep(1)  # Give time for the command to execute
                 output = stdout.read().decode()
@@ -64,8 +69,15 @@ def ssh_command(host, username, password, commands, output_file):
                     out.write(f"\nError: {command}\n{error}")
         ssh.close()
         return None  # No errors
+
+    except paramiko.ssh_exception.AuthenticationException:
+        return "[ERROR] Authentication failed. Please check your username or password."
+
+    except paramiko.ssh_exception.NoValidConnectionsError:
+        return "[ERROR] Unable to connect to host. Check if the device is reachable."
+
     except Exception as e:
-        return str(e)  # Return error message
+        return f"[ERROR] {e}"
 
 def main():
     print("\nAutomated Pre and Post Diff Check Script")
@@ -128,10 +140,10 @@ def main():
         output_file = f"{host}.{file_suffix}.{health_check_type}"
         error = ssh_command(host, username, password, commands, output_file)
         if error:
-            print(f"\n[ERROR] Could not process host {host}. Error: {error}")
+            logger.error(f"Could not process host {host}. Error: {error}")
             unreachable_hosts.append(host)
         else:
-            print(f"\nOutput for {host} saved to {output_file}")
+            logger.info(f"Output for {host} saved to {output_file}")
             updated_files.append(output_file)
 
     # Perform diff for Post health check
@@ -143,7 +155,7 @@ def main():
             diff_output_file = f"{host}.{file_suffix}.out"
 
             if not os.path.exists(pre_file):
-                print(f"\n[WARNING] {pre_file} not found for {host}. Skipping diff.")
+                logger.warning(f"{pre_file} not found for {host}. Skipping diff.")
                 continue
 
             with open(pre_file, "r") as pre, open(post_file, "r") as post, open(diff_output_file, "w") as diff_out:
@@ -152,14 +164,14 @@ def main():
                 diff = difflib.unified_diff(pre_lines, post_lines, fromfile=pre_file, tofile=post_file)
                 diff_output = "".join(diff)
                 if diff_output:
-                    print(f"\n[INFO] Difference found for {host}.")
+                    logger.info(f"Difference found for {host}.")
                     print(diff_output)
                 else:
-                    print(f"\n[INFO] No differences found for {host}.")
+                    logger.info(f"No differences found for {host}.")
                 diff_out.write(diff_output)
                 updated_files.append(diff_output_file)
 
-            print(f"\nDiff for {host} saved to {diff_output_file}")
+            logger.info(f"Diff for {host} saved to {diff_output_file}")
 
     # Summary of operations
     print("\nAll done! Have a nice day!")
