@@ -28,7 +28,6 @@ hosts.txt must be named "hosts.txt".  The file must be located in the current di
         92.168.0.1
         192.168.0.2
 '''
-#!/usr/bin/env python3
 import os
 import logging
 import difflib
@@ -45,7 +44,7 @@ os.system('clear')
 def ssh_command(host, username, password, commands, output_file):
     """
     Execute commands on a host via SSH and save output to a file.
-    Returns an error message if the host is not reachable or commands fail.
+    Ensures the session is active and ready for command execution.
     """
     try:
         logger.info(f"Attempting to connect to {host}...")
@@ -54,19 +53,27 @@ def ssh_command(host, username, password, commands, output_file):
         ssh.connect(host, username=username, password=password, timeout=20)
         logger.info(f"Successfully connected to {host}.")
 
+        # Open an interactive shell session
+        ssh_shell = ssh.invoke_shell()
+        ssh_shell.settimeout(10)  # Timeout for shell interactions
+
+        # Check if the shell is active
+        if not ssh_shell.active:
+            raise RuntimeError("SSH shell session is not active.")
+
         # Execute commands
         with open(output_file, "a") as out:
             out.write(f"\n--- Output from {host} ---\n")
             for command in commands:
                 logger.info(f"[{host}] Running command: {command}")
-                stdin, stdout, stderr = ssh.exec_command(command)
-                time.sleep(1)  # Give time for the command to execute
-                output = stdout.read().decode()
-                error = stderr.read().decode()
-                if output:
+                ssh_shell.send(command + "\n")
+                time.sleep(2)  # Wait for the command to execute
+                if ssh_shell.recv_ready():
+                    output = ssh_shell.recv(65535).decode('utf-8')
                     out.write(f"\nCommand: {command}\n{output}")
-                if error:
-                    out.write(f"\nError: {command}\n{error}")
+                    logger.info(f"[{host}] Command executed successfully.")
+                else:
+                    logger.warning(f"[{host}] No output received for command: {command}")
         ssh.close()
         return None  # No errors
 
