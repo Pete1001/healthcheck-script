@@ -33,10 +33,14 @@ import os
 import subprocess
 from getpass import getpass
 import difflib
+import paramiko
+import time
+
+os.system('clear')
 
 def main():
     print("Automated Pre and Post Diff Check Script")
-    print("===================")
+    print("=========================================================")
     
     # Prompt for Pre or Post health check
     health_check_type = input("Are you doing a Pre or Post Health check? (Pre/Post): ").strip().lower()
@@ -46,9 +50,12 @@ def main():
         return
 
     # Equipment type selection
+    print('')
     print("Select the equipment type:")
+    print('')
     print("1. Cisco Catalyst 49xx")
     print("2. Cisco Catalyst 65xx or 76xx")
+    print('')
     equipment_choice = input("Enter your choice (1/2): ").strip()
     
     if equipment_choice == "1":
