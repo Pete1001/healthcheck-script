@@ -28,6 +28,7 @@ hosts.txt must be named "hosts.txt".  The file must be located in the current di
         92.168.0.1
         192.168.0.2
 '''
+#!/usr/bin/env python3
 import os
 import logging
 import difflib
@@ -40,6 +41,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 os.system('clear')
+
+def check_required_files(required_files):
+    """
+    Check if all required files exist in the current directory.
+    """
+    missing_files = [file for file in required_files if not os.path.exists(file)]
+    if missing_files:
+        print("\n[WARNING] The following required files are missing:")
+        for file in missing_files:
+            print(f" - {file}")
+        print("\nPlease ensure all required files are present before proceeding.")
+        return False
+    return True
 
 def ssh_command(host, username, password, commands, output_file):
     """
@@ -91,6 +105,16 @@ def ssh_command(host, username, password, commands, output_file):
 def main():
     print("\nAutomated Pre and Post Diff Check Script")
     print("=" * 60)
+    print("\nThis script requires the following files in the current directory:")
+    print("- `hosts.txt`: List of hosts (one per line).")
+    print("- `CC_49xx.txt`: Commands for Cisco Catalyst 49xx devices.")
+    print("- `CC_65xx-76xx.txt`: Commands for Cisco Catalyst 65xx or 76xx devices.")
+    print("- Pre-check files (.pre) for comparison during post-checks.\n")
+
+    # Check required files
+    required_files = ["hosts.txt", "CC_49xx.txt", "CC_65xx-76xx.txt"]
+    if not check_required_files(required_files):
+        return
 
     # Prompt for Pre or Post health check
     health_check_type = input("\nAre you doing a Pre or Post Health check? (Pre/Post): ").strip().lower()
@@ -127,12 +151,7 @@ def main():
     password = getpass("Enter your SSH password: ")
 
     # Read hosts from hosts.txt
-    hosts_file = "hosts.txt"
-    if not os.path.exists(hosts_file):
-        print(f"\nError: {hosts_file} not found.")
-        return
-
-    with open(hosts_file, "r") as hf:
+    with open("hosts.txt", "r") as hf:
         hosts = [line.strip() for line in hf if line.strip()]
 
     # Track processed files and errors
@@ -176,12 +195,15 @@ def main():
                 post_lines = post.readlines()
                 diff = difflib.unified_diff(pre_lines, post_lines, fromfile=pre_file, tofile=post_file)
                 diff_output = "".join(diff)
+                diff_out.write("==== DIFF RESULTS ====\n")
+                diff_out.write(f"Comparison of Pre-check ({pre_file}) and Post-check ({post_file}):\n\n")
                 if diff_output:
+                    diff_out.write(diff_output)
                     logger.info(f"Difference found for {host}.")
-                    print(diff_output)
                 else:
+                    diff_out.write("[INFO] No differences detected.\n")
                     logger.info(f"No differences found for {host}.")
-                diff_out.write(diff_output)
+                diff_out.write("\n==== END OF RESULTS ====\n")
                 updated_files.append(diff_output_file)
 
             logger.info(f"Diff for {host} saved to {diff_output_file}")
