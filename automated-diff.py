@@ -28,7 +28,6 @@ hosts.txt must be named "hosts.txt".  The file must be located in the current di
         92.168.0.1
         192.168.0.2
 '''
-#!/usr/bin/env python3
 import os
 import logging
 import difflib
@@ -161,11 +160,15 @@ def main():
         print("\nPerforming diff for post health check...\n")
         for host in hosts:
             pre_file = f"{host}.{file_suffix}.pre"
-            post_file = f"{host}.{file_suffix}.aft"
+            post_file = f"{host}.{file_suffix}.post"
             diff_output_file = f"{host}.{file_suffix}.out"
 
             if not os.path.exists(pre_file):
                 logger.warning(f"{pre_file} not found for {host}. Skipping diff.")
+                continue
+
+            if not os.path.exists(post_file):
+                logger.warning(f"{post_file} not found for {host}. Skipping diff.")
                 continue
 
             with open(pre_file, "r") as pre, open(post_file, "r") as post, open(diff_output_file, "w") as diff_out:
