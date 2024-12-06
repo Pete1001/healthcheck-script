@@ -155,7 +155,7 @@ def main():
         hosts = [line.strip() for line in hf if line.strip()]
 
     # Track processed files and errors
-    updated_files = []
+    updated_files = {}
     unreachable_hosts = []
 
     print("\nStarting health check for all hosts...\n")
@@ -172,7 +172,8 @@ def main():
             unreachable_hosts.append(host)
         else:
             logger.info(f"Output for {host} saved to {output_file}")
-            updated_files.append(output_file)
+            description = "This is the pre-check output file." if health_check_type == "pre" else "This is the post-check output file."
+            updated_files[output_file] = description
 
     # Perform diff for Post health check
     if health_check_type == "post":
@@ -204,7 +205,7 @@ def main():
                     diff_out.write("[INFO] No differences detected.\n")
                     logger.info(f"No differences found for {host}.")
                 diff_out.write("\n==== END OF RESULTS ====\n")
-                updated_files.append(diff_output_file)
+                updated_files[diff_output_file] = "This is the diff file showing differences between pre and post checks."
 
             logger.info(f"Diff for {host} saved to {diff_output_file}")
 
@@ -212,8 +213,8 @@ def main():
     print("\nAll done! Have a nice day!")
     print("=" * 60)
     print("\nSummary of updated files:")
-    for file in updated_files:
-        print(f" - {file}")
+    for file, description in updated_files.items():
+        print(f" - {file} - {description}")
 
     if unreachable_hosts:
         print("\nSummary of unreachable hosts:")
