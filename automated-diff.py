@@ -160,12 +160,12 @@ def main():
 
                     if not os.path.exists(pre_file):
                         logger.warning(f"{pre_file} not found for {host}. Skipping diff.")
-                        diff_out.write(f"{command} - [WARNING] Pre file not found.\n-------------------------------\n")
+                        diff_out.write(f"{command} - [WARNING] Pre file not found.\n--------------------------------------------------------------\n")
                         continue
 
                     if not os.path.exists(post_file):
                         logger.warning(f"{post_file} not found for {host}. Skipping diff.")
-                        diff_out.write(f"{command} - [WARNING] Post file not found.\n-------------------------------\n")
+                        diff_out.write(f"{command} - [WARNING] Post file not found.\n--------------------------------------------------------------\n")
                         continue
 
                     with open(pre_file, "r") as pre, open(post_file, "r") as post:
@@ -178,7 +178,7 @@ def main():
                             diff_out.write(diff_output)
                         else:
                             diff_out.write("[INFO] No differences detected.\n")
-                        diff_out.write("\n-------------------------------\n")
+                        diff_out.write("\n--------------------------------------------------------------\n")
 
     # Summary of operations
     print("\nAll done! Have a nice day!")
