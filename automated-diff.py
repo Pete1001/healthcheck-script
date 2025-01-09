@@ -24,10 +24,9 @@ def check_required_files(required_files):
         return False
     return True
 
-def ssh_command(host, username, password, commands, output_file):
+def ssh_command(host, username, password, commands, ticket_number, health_check_type):
     """
-    Execute commands on a host via SSH and save output to a file.
-    Adds a separator between each command's output.
+    Execute commands on a host via SSH and save output to separate files.
     """
     try:
         logger.info(f"Attempting to connect to {host}...")
@@ -45,20 +44,20 @@ def ssh_command(host, username, password, commands, output_file):
             raise RuntimeError("SSH shell session is not active.")
 
         # Execute commands
-        with open(output_file, "a") as out:
-            out.write(f"\n--- Output from {host} ---\n")
-            for command in commands:
-                logger.info(f"[{host}] Running command: {command}")
-                ssh_shell.send(command + "\n")
-                time.sleep(2)  # Wait for the command to execute
-                if ssh_shell.recv_ready():
-                    output = ssh_shell.recv(65535).decode('utf-8')
-                    # Add command output and separator
-                    out.write(f"\nCommand: {command}\n{output}\n")
-                    out.write(f"{'-' * 50}\n")  # Add separator line
-                    logger.info(f"[{host}] Command executed successfully.")
-                else:
-                    logger.warning(f"[{host}] No output received for command: {command}")
+        for command in commands:
+            logger.info(f"[{host}] Running command: {command}")
+            ssh_shell.send(command + "\n")
+            time.sleep(2)  # Wait for the command to execute
+            if ssh_shell.recv_ready():
+                output = ssh_shell.recv(65535).decode('utf-8')
+                # Write each command's output to a separate file
+                command_safe = command.replace(' ', '_').replace('|', '').replace('/', '_')
+                output_file = os.path.join(ticket_number, f"{host}-{command_safe}.{health_check_type}")
+                with open(output_file, "w") as out:
+                    out.write(output)
+                logger.info(f"[{host}] Output written to {output_file}")
+            else:
+                logger.warning(f"[{host}] No output received for command: {command}")
         ssh.close()
         return None  # No errors
 
@@ -111,10 +110,8 @@ def main():
 
     if equipment_choice == "1":
         device_file = "CC_49xx.txt"
-        file_suffix = "49xx"
     elif equipment_choice == "2":
         device_file = "CC_65xx-76xx.txt"
-        file_suffix = "65xx-76xx"
     else:
         print("\nInvalid choice. Please enter 1 or 2.")
         return
@@ -135,8 +132,7 @@ def main():
     with open("hosts.txt", "r") as hf:
         hosts = [line.strip() for line in hf if line.strip()]
 
-    # Track processed files and errors
-    updated_files = {}
+    # Track errors
     unreachable_hosts = []
 
     print("\nStarting health check for all hosts...\n")
@@ -146,57 +142,47 @@ def main():
     for host in hosts:
         print(f"\nProcessing host: {host}")
         print("-" * 60)
-        output_file = os.path.join(ticket_number, f"{host}.{file_suffix}.{health_check_type}")
-        error = ssh_command(host, username, password, commands, output_file)
+        error = ssh_command(host, username, password, commands, ticket_number, health_check_type)
         if error:
             logger.error(f"Could not process host {host}. Error: {error}")
             unreachable_hosts.append(host)
-        else:
-            logger.info(f"Output for {host} saved to {output_file}")
-            description = "This is the pre-check output file." if health_check_type == "pre" else "This is the post-check output file."
-            updated_files[output_file] = description
 
     # Perform diff for Post health check
     if health_check_type == "post":
         print("\nPerforming diff for post health check...\n")
-        for host in hosts:
-            pre_file = os.path.join(ticket_number, f"{host}.{file_suffix}.pre")
-            post_file = os.path.join(ticket_number, f"{host}.{file_suffix}.post")
-            diff_output_file = os.path.join(ticket_number, f"{host}.{file_suffix}.out")
+        for command in commands:
+            command_safe = command.replace(' ', '_').replace('|', '').replace('/', '_')
+            diff_output_file = os.path.join(ticket_number, "diff.out")
 
-            if not os.path.exists(pre_file):
-                logger.warning(f"{pre_file} not found for {host}. Skipping diff.")
-                continue
+            with open(diff_output_file, "a") as diff_out:
+                for host in hosts:
+                    pre_file = os.path.join(ticket_number, f"{host}-{command_safe}.pre")
+                    post_file = os.path.join(ticket_number, f"{host}-{command_safe}.post")
 
-            if not os.path.exists(post_file):
-                logger.warning(f"{post_file} not found for {host}. Skipping diff.")
-                continue
+                    if not os.path.exists(pre_file):
+                        logger.warning(f"{pre_file} not found for {host}. Skipping diff.")
+                        continue
 
-            with open(pre_file, "r") as pre, open(post_file, "r") as post, open(diff_output_file, "w") as diff_out:
-                pre_lines = pre.readlines()
-                post_lines = post.readlines()
-                diff = difflib.unified_diff(pre_lines, post_lines, fromfile=pre_file, tofile=post_file)
-                diff_output = "".join(diff)
-                diff_out.write("============== DIFF RESULTS ==============\n")
-                diff_out.write(f"Comparison of Pre-check ({pre_file}) and Post-check ({post_file}):\n\n")
-                if diff_output:
-                    diff_out.write(diff_output)
-                    logger.info(f"Difference found for {host}.")
-                else:
-                    diff_out.write("[INFO] No differences detected.\n")
-                    logger.info(f"No differences found for {host}.")
-                diff_out.write("\n============== END OF RESULTS ==============\n")
-                updated_files[diff_output_file] = "This is the diff file showing differences between pre and post checks."
+                    if not os.path.exists(post_file):
+                        logger.warning(f"{post_file} not found for {host}. Skipping diff.")
+                        continue
 
-            logger.info(f"Diff for {host} saved to {diff_output_file}")
+                    with open(pre_file, "r") as pre, open(post_file, "r") as post:
+                        pre_lines = pre.readlines()
+                        post_lines = post.readlines()
+                        diff = difflib.unified_diff(pre_lines, post_lines, fromfile=pre_file, tofile=post_file)
+                        diff_output = "".join(diff)
+                        if diff_output:
+                            diff_out.write(f"{command} - Host: {host}\n")
+                            diff_out.write(diff_output)
+                            diff_out.write("\n-----------------\n")
+                        else:
+                            diff_out.write(f"{command} - Host: {host}\n[INFO] No differences detected.\n")
+                            diff_out.write("\n-----------------\n")
 
     # Summary of operations
     print("\nAll done! Have a nice day!")
     print("=" * 60)
-    print("\nSummary of updated files:")
-    print('')
-    for file, description in updated_files.items():
-        print(f" - {file} - {description}")
 
     if unreachable_hosts:
         print("\nSummary of unreachable hosts:")
