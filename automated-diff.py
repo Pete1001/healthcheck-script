@@ -58,6 +58,7 @@ def check_required_files(required_files):
 def ssh_command(host, username, password, commands, ticket_number, health_check_type):
     """
     Execute commands on a host via SSH and save output to separate files.
+    Additionally, create a consolidated .precheck file for Pre health checks.
     """
     try:
         logger.info(f"Attempting to connect to {host}...")
@@ -74,6 +75,11 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
         if not ssh_shell.active:
             raise RuntimeError("SSH shell session is not active.")
 
+        # Create consolidated .precheck file for pre-checks
+        precheck_file = None
+        if health_check_type == "pre":
+            precheck_file = os.path.join(ticket_number, f"{host}.precheck")
+
         # Execute commands
         for command in commands:
             logger.info(f"[{host}] Running command: {command}")
@@ -87,6 +93,11 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
                 with open(output_file, "w") as out:
                     out.write(output)
                 logger.info(f"[{host}] Output written to {output_file}")
+
+                # Append to consolidated .precheck file
+                if health_check_type == "pre" and precheck_file:
+                    with open(precheck_file, "a") as consolidated:
+                        consolidated.write(f"Command: {command}\n{output}\n{'-' * 50}\n")
             else:
                 logger.warning(f"[{host}] No output received for command: {command}")
         ssh.close()
