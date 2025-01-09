@@ -90,6 +90,8 @@ def main():
     if not os.path.exists(ticket_number):
         os.makedirs(ticket_number)
 
+    print(f"\nTicket number {ticket_number} has been recorded. Output will be saved in the corresponding directory.")
+
     # Check required files
     required_files = ["hosts.txt", "CC_49xx.txt", "CC_65xx-76xx.txt"]
     if not check_required_files(required_files):
