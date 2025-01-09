@@ -71,16 +71,17 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
         return f"[ERROR] {e}"
 
 def main():
-    print("\nAutomated Pre and Post Diff Check Script")
+    print("\nThis is an Automated Healthcheck and Pre / Post Check Script with automated Post Diff reporting")
     print("=" * 60)
     print("\nThis script requires the following files in the current directory:")
     print("- `hosts.txt`: List of hosts (one per line).")
+    print("- `C_ASR9K.txt` : Commands for Cisco ASR9K devices.")
     print("- `CC_49xx.txt`: Commands for Cisco Catalyst 49xx devices.")
     print("- `CC_65xx-76xx.txt`: Commands for Cisco Catalyst 65xx or 76xx devices.")
-    print("- Additional files based on additional menu items to be added...\n")
+    print("- Output files will be stored / retrieved from the ticket directory with the NAASOPS-xxxx name...\n")
 
     # Ask for the ticket number and create the directory
-    ticket_number = input("Please enter the ticket that you are working on (e.g., 'NAASOPS-xxxx'): ").strip()
+    ticket_number = input("Please enter / re-enter the ticket that you are working on (e.g., 'NAASOPS-xxxx'): ").strip()
     if not ticket_number:
         print("Ticket number cannot be empty. Exiting.")
         return
@@ -92,7 +93,7 @@ def main():
     print(f"\nTicket number {ticket_number} has been recorded. Output will be saved in the corresponding directory.")
 
     # Check required files
-    required_files = ["hosts.txt", "CC_49xx.txt", "CC_65xx-76xx.txt"]
+    required_files = ["hosts.txt", "C_ASR9K.txt", "CC_49xx.txt", "CC_65xx-76xx.txt"]
     if not check_required_files(required_files):
         return
 
@@ -104,16 +105,19 @@ def main():
 
     # Equipment type selection
     print("\nSelect the equipment type:")
-    print("1. Cisco Catalyst 49xx")
-    print("2. Cisco Catalyst 65xx or 76xx")
-    equipment_choice = input("\nEnter your choice (1/2): ").strip()
+    print("1. Cisco ASR9K")
+    print("2. Cisco Catalyst 49xx")
+    print("3. Cisco Catalyst 65xx or 76xx")
+    equipment_choice = input("\nEnter your choice (1-3): ").strip()
 
     if equipment_choice == "1":
+        device_file = "C_ASR9K.txt"
+    if equipment_choice == "2":
         device_file = "CC_49xx.txt"
-    elif equipment_choice == "2":
+    elif equipment_choice == "3":
         device_file = "CC_65xx-76xx.txt"
     else:
-        print("\nInvalid choice. Please enter 1 or 2.")
+        print("\nInvalid choice. Please enter 1 - 3.")
         return
 
     # Read commands from file
@@ -128,7 +132,7 @@ def main():
     username = input("\nEnter your SSH username: ").strip()
     password = getpass("Enter your SSH password: ")
 
-    # Read hosts from hosts.txt
+    # Read devices from hosts.txt
     with open("hosts.txt", "r") as hf:
         hosts = [line.strip() for line in hf if line.strip()]
 
