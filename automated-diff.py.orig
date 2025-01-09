@@ -1,3 +1,34 @@
+#!/usr/bin/env python3
+'''
+# automated-diff.py
+#
+# Author:      Pete Link
+# Date:        December 2024
+# Description: Script to gather pre check output from network devices using SSH, then later gather post checks output and compare results.
+
+## Contact
+For questions or suggestions, feel free to open an issue or contact me via [GitHub](https://github.com/Pete1001).
+
+ Use:        python3 `filename`
+
+ Current directory must containt the files from the menu; e.g.:
+    -CC_49xx.txt
+    -CC_65xx-76xx.txt
+
+    -the file should contain all commands from the Mandatory Pre/Post Check Verification section including the following:
+        term len 0
+        show run | i hostname
+        show clock
+    
+hosts.txt must be named "hosts.txt".  The file must be located in the current directory and must be formatted in the following way:
+    -one hostname or IP Address per line with no commas, quotes or spaces.
+    
+    -hosts.txt example:
+
+        92.168.0.1
+        192.168.0.2
+'''
+
 import os
 import logging
 import difflib
@@ -78,17 +109,7 @@ def main():
     print("- `hosts.txt`: List of hosts (one per line).")
     print("- `CC_49xx.txt`: Commands for Cisco Catalyst 49xx devices.")
     print("- `CC_65xx-76xx.txt`: Commands for Cisco Catalyst 65xx or 76xx devices.")
-    print("- Additional files based on additional menu items to be added...\n")
-
-    # Ask for the ticket number and create the directory
-    ticket_number = input("Please enter the ticket that you are working on (e.g., 'NAASOPS-xxxx'): ").strip()
-    if not ticket_number:
-        print("Ticket number cannot be empty. Exiting.")
-        return
-
-    # Create directory for the ticket
-    if not os.path.exists(ticket_number):
-        os.makedirs(ticket_number)
+    print("- Additional filess based on additional menu items to be added...\n")
 
     # Check required files
     required_files = ["hosts.txt", "CC_49xx.txt", "CC_65xx-76xx.txt"]
@@ -106,7 +127,7 @@ def main():
     print("1. Cisco Catalyst 49xx")
     print("2. Cisco Catalyst 65xx or 76xx")
     equipment_choice = input("\nEnter your choice (1/2): ").strip()
-
+    
     if equipment_choice == "1":
         device_file = "CC_49xx.txt"
         file_suffix = "49xx"
@@ -144,7 +165,7 @@ def main():
     for host in hosts:
         print(f"\nProcessing host: {host}")
         print("-" * 60)
-        output_file = os.path.join(ticket_number, f"{host}.{file_suffix}.{health_check_type}")
+        output_file = f"{host}.{file_suffix}.{health_check_type}"
         error = ssh_command(host, username, password, commands, output_file)
         if error:
             logger.error(f"Could not process host {host}. Error: {error}")
@@ -158,9 +179,9 @@ def main():
     if health_check_type == "post":
         print("\nPerforming diff for post health check...\n")
         for host in hosts:
-            pre_file = os.path.join(ticket_number, f"{host}.{file_suffix}.pre")
-            post_file = os.path.join(ticket_number, f"{host}.{file_suffix}.post")
-            diff_output_file = os.path.join(ticket_number, f"{host}.{file_suffix}.out")
+            pre_file = f"{host}.{file_suffix}.pre"
+            post_file = f"{host}.{file_suffix}.post"
+            diff_output_file = f"{host}.{file_suffix}.out"
 
             if not os.path.exists(pre_file):
                 logger.warning(f"{pre_file} not found for {host}. Skipping diff.")
