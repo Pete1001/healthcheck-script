@@ -1,3 +1,34 @@
+#!/usr/bin/env python3
+'''
+# automated-diff.py
+#
+# Author:      Pete Link
+# Date:        January 2025
+# Description: This script logs into network devices and gathers Automated Healthcheck and Pre / Post Check with automated Post Diff reporting
+
+## Contact
+For questions or suggestions, feel free to open an issue or contact me via [GitHub](https://github.com/Pete1001).
+
+ Use:        python3 `filename`
+
+ Current directory must containt the files from the menu; e.g.:
+    -CC_49xx.txt
+    -CC_65xx-76xx.txt
+
+    -the file should contain all commands from the Mandatory Pre/Post Check Verification section including the following:
+        term len 0
+        show run | i hostname
+        show clock
+    
+hosts.txt must be named "hosts.txt".  The file must be located in the current directory and must be formatted in the following way:
+    -one hostname or IP Address per line with no commas, quotes or spaces.
+    
+    -hosts.txt example:
+
+        92.168.0.1
+        192.168.0.2
+'''
+
 import os
 import logging
 import difflib
@@ -93,7 +124,8 @@ def main():
     print(f"\nTicket number {ticket_number} has been recorded. Output will be saved in the corresponding directory.")
 
     # Check required files
-    required_files = ["hosts.txt", "C_ASR9K.txt", "CC_49xx.txt", "CC_65xx-76xx.txt"]
+    required_files = ['hosts.txt', 'C_ASR9K.txt', 'CC_49xx.txt', 'CC_65xx-76xx.txt', 'CC_2960.txt', 'CC_3850.txt', 'CC_4500-X.txt', 'C-CRS.txt', 'C-Nexus 5xxx.txt',
+                      'C-Nexus 7xxx.txt', 'C-Nexus 93xx-95xx.txt']
     if not check_required_files(required_files):
         return
 
@@ -105,19 +137,51 @@ def main():
 
     # Equipment type selection
     print("\nSelect the equipment type:")
-    print("1. Cisco ASR9K")
-    print("2. Cisco Catalyst 49xx")
-    print("3. Cisco Catalyst 65xx or 76xx")
-    equipment_choice = input("\nEnter your choice (1-3): ").strip()
+    print(" 1. Cisco ASR9K")
+    print(" 2. Cisco CRS")
+    print(" 3. Cisco Catalyst 2960")
+    print(" 4. Cisco Catalyst 3850")
+    print(" 5. Cisco Catalyst 4500-X")
+    print(" 6. Cisco Catalyst 49xx")
+    print(" 7. Cisco Catalyst 65xx or 76xx")
+    print(" 8. Cisco Nexus 5xxx")
+    print(" 9. Cisco Nexus 7xxx")
+    print("10. Cisco Nexus 93xx/95xx")
+
+    equipment_choice = input("\nEnter your choice (1-10): ").strip()
 
     if equipment_choice == "1":
         device_file = "C_ASR9K.txt"
+
     if equipment_choice == "2":
-        device_file = "CC_49xx.txt"
+        device_file = "C-CRS.txt"
+
     elif equipment_choice == "3":
+        device_file = "CC_2960.txt"
+
+    elif equipment_choice == "4":
+        device_file = "CC_3850.txt"
+
+    elif equipment_choice == "5":
+        device_file = "CC_4500-X.txt"
+
+    elif equipment_choice == "6":
+        device_file = "CC_49xx.txt"
+
+    elif equipment_choice == "7":
         device_file = "CC_65xx-76xx.txt"
+
+    elif equipment_choice == "8":
+        device_file = "C-Nexus 5xxx.txt"
+
+    elif equipment_choice == "9":
+        device_file = "C-Nexus 7xxx.txt"
+
+    elif equipment_choice == "10":
+        device_file = "C-Nexus 93xx-95xx.txt"
+        
     else:
-        print("\nInvalid choice. Please enter 1 - 3.")
+        print("\nInvalid choice. Please enter 1 - 10.")
         return
 
     # Read commands from file

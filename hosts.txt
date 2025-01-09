@@ -1,2 +1,2 @@
-192.168.0.1
-192.168.0.2
+nycmnywi-mdc-tvro-sw1
+nycmnywi-mdc-tvro-sw2

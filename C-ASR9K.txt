@@ -1,0 +1,88 @@
+admin terminal length 0
+admin show clock detail
+admin show version brief
+admin show run
+admin show environment fans
+admin show environment power-supply
+admin show environment power-supply states
+admin show install active summary
+admin show platform
+admin show environment leds
+admin show led location all
+admin show redundancy
+admin show dsc
+admin show license status
+admin show variables boot
+admin show inventory
+admin show hw-module fpd location all
+admin show dsc stats
+terminal length 0
+show run
+show filesystem location all
+show media location all | exclude Information | inc /
+show interface description
+show process cpu
+show process cpu | i CPU
+show memory summary
+show bundle status | i Checking
+show log start today
+more nvram:/classic-rommon-var
+show placement reoptimize
+show health memory
+show health sysdb
+show cdp neighbors
+show bgp all all summary
+show bgp all all neighbors performance-statistics
+show igmp interface state-on | i up
+show isis adjacency
+show isis neighbor
+show isis interface | i Enabled
+show ospf neighbor
+show ospf summary
+show l2vpn bridge-domain detail
+show l2vpn xconnect detail
+show mpls ldp neighbor
+show mpls ldp neigh brief
+show pim neighbor
+admin show run | utility wc -l
+admin show environment power-supply | include host | utility wc -l
+admin show environment power-supply | include host | include Ok | utility wc -l
+admin show platform | utility egrep ^[0-1] | utility wc -l
+admin show platform | utility egrep ^[0-1] | utility egrep "IOS XR RUN|OK|READY" | utility wc -l
+admin show environment leds | ex "RSP|Status" | utility wc -l
+admin show environment leds | ex "RSP|Status" | utility egrep "Off" | utility wc -l
+admin show led location all | utility egrep "IOS|ACTV|STBY" | utility wc -l
+admin show led location all | utility egrep "IOS|ACTV|STBY" | utility egrep UNLOCKED | utility wc -l
+admin show redundancy | i RSP | e "reload|information" | utility wc -l
+admin show redundancy | i RSP | utility egrep "Standby|STANDBY|ACTIVE|Ready|ready|BACKUP" | utility wc -l
+admin show dsc | i "CPU|RSP" | utility wc -l
+admin show dsc | i "STAND|ACT" | utility wc -l
+show run | utility wc -l
+show filesystem location all | i node | utility wc -l
+show media location all | exclude Information | inc / | utility wc -l
+show media location all | exclude Information | inc / | inc Mounted | utility wc -l
+show bundle status | utility fgrep .... | utility wc -l
+show bundle status | utility fgrep .... | i OK | utility wc -l
+show health sysdb | i sysdb | utility wc -l
+show health sysdb | i sysdb | i OK | utility wc -l
+show cdp neighbors | i [0-9a-zA-Z,4][0-9] | utility wc -l
+show bgp all all neighbors performance-statistics | inc neighbor | utility wc -l
+show igmp interface state-on | i up | utility wc -l
+show isis adjacency | utility egrep "[a-zA-Z,4]" | e "System|Total|Level|BFD" | utility wc -l
+show isis adjacency | utility egrep "[a-zA-Z,4]" | e "System|Total|Level|BFD" | i Up | utility wc -l
+show isis neighbors | i [0-9a-zA-Z,4][0-9] | e count | utility wc -l
+show isis neighbors | i [0-9a-zA-Z,4][0-9] | e count | i Up | utility wc -l
+show isis interface | i Enabled | e "Topology|Family|Formation|Prefix" | utility wc -l
+show pim neighbor | utility fgrep . | utility wc -l
+show interface summary
+show processes cpu | ex " 0%"
+show health memory | inc %
+show memory summary
+show igmp groups summary
+show mfib route summary
+show pim summary
+show route ipv4 summary
+show route ipv6 summary
+show bgp summary
+show bgp ipv6 unicast summary
+show ipv6 interface | i DUP

@@ -1,0 +1,25 @@
+terminal length 0
+show run
+show logging
+show env all
+show ip int brief | inc \.
+show ipv6 int brief | inc \:
+show interface status
+show etherchannel summary
+show memory statistics
+show sdm prefer
+show proc cpu sorted
+show cdp neighbor
+show interfaces summary
+show inventory
+show version
+show interface description
+show mac address-table
+show proc cpu hist
+show interface status | inc connected
+show int status | count connected
+show int status | count notconnect
+show run include-switch-profile | count
+show run | count .
+show mac address-table | count .
+show ip arp | count .

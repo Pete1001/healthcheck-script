@@ -1,11 +1,12 @@
 terminal length 0
 show run
 show logging
-show environment
+show env all
 show ip int brief | inc \.
 show interface status
 show etherchannel summary
-show memory statistics
+show memory
+show sdm prefer
 show proc cpu sorted
 show cdp neighbor
 show interfaces summary
@@ -16,18 +17,6 @@ show mac address-table
 show module
 show vlan
 show spanning-tree summary
-show ip pim neighbor
-show ip pim rp
-show ipv6 pim neighbor
-show ipv6 pim rp
-show redundancy
-show ip ospf database
-show ip bgp summary
-show ipv6 ospf database
-show ipv6 bgp summary
-show isis database
-show fabric utilization
-show environment alarm
 show proc cpu hist
 show interface status | inc connected
 show int status | count connected
@@ -36,8 +25,3 @@ show vlan | count active
 show run | count .
 show mac address-table | count .
 show ip arp | count .
-show ip pim rp | count .
-show ip pim neighbor | count [0-9,1-3]]
-show ipv6 pim rp | count .
-show ipv6 pim neighbor | count [0-9a-f,1-4]:
-show redundancy counters

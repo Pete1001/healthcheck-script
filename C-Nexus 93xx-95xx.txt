@@ -1,0 +1,53 @@
+terminal length 0
+show run
+show vrf
+show license
+show license usage
+show inventory
+show version
+show module
+show diagnostic result module all detail
+show system internal mts buffer summary
+show hardware internal buffer info pkt-stats
+show interface brief
+show interface description
+show port-channel summary
+show vpc
+show vpc brief
+show environment
+show mac address-table
+show cdp neighbor
+show lldp neighbor
+show system redundancy status
+show system resources all-modules
+show processes cpu | ex 0.0
+show processes cpu history
+show vdc detail
+show vdc resource detail
+show logging last 1000
+show accounting log | last 100 | ex "ssh session closed"
+show ip bgp summary vrf all | inc [0-9,1-3].[0-9,1-3].[0-9,1-3]
+show ipv6 bgp summary vrf all | inc [a-f0-9,1-4]:[a-f0-9,1-4]
+show run | count
+show run | inc feature | count
+show vrf detail | inc Name | inc Up | count
+sh mod | inc N9 | count
+sh mod | inc N9 | inc active|ok | count
+show interface brief | inc up | count
+show interface brief | inc down | count
+show port-channel summary | inc LACP|NONE | count
+show environment fan | inc Chassis|PS | count
+show environment fan | inc Chassis|PS | inc Ok | count
+show environment temperature | inc 110|90|80|70 | count
+show environment temperature | inc 110|90|80|70 | inc Ok | count
+sh mac address-table | inc dynamic | count
+show processes cpu sort | head
+show processes memory shared | inc totals
+sh vpc brief | inc domain|switch|keep-alive|fabricpath|consistency|role|ateway
+show vpc | inc up
+show ip bgp summary vrf all | inc "^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3}).*" | count
+show ipv6 bgp summary vrf all | inc "^([0-9|a-f]{1,4})\:([0-9|a-f]{1,4})\:([0-9|a-f]{1,4})\:*" | count
+show ip pim interface vrf all | count
+show ip pim neighbor vrf all | count
+show ipv6 pim interface vrf all | count
+show ipv6 pim neighbor vrf all | count

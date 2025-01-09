@@ -29,7 +29,7 @@ This script is particularly useful for network engineers performing routine chec
 ---
 
 ## Installation
-1. Clone or download this repository to your local machine.
+1. Clone or download this repository to your local machine including all 'C-' and 'CC-' txt files.
 2. Install required Python packages:
    ```bash
    pip install paramiko
@@ -57,14 +57,24 @@ python3 automated-diff.py
    Choose whether you are performing a Pre or Post health check:
    ```
    Are you doing a Pre or Post Health check? (Pre/Post):
+     -after Pre-check  - consolidated output is written to hostname.precheck
+     -after Post-check - Diff between pre and post check is written to .out file, eg.: hostname.out
    ```
 
 3. **Select Device Type**
    Choose the device type to determine the command file:
    ```
    Select the equipment type:
-   1. Cisco Catalyst 49xx
-   2. Cisco Catalyst 65xx or 76xx
+   1.  Cisco ASR9K
+   2.  Cisco CRS
+   3.  Cisco Catalyst 2960
+   4.  Cisco Catalyst 2960
+   5.  Cisco Catalyst 3850
+   6.  Cisco Catalyst 4500-X
+   7.  Cisco Catalyst 65xx or 76xx
+   8.  Cisco Nexus 5xxx
+   9.  Cisco Nexus 7xxx
+   10. Cisco Nexus 93xx/95xx
    ```
 
 4. **Provide SSH Credentials**
@@ -72,6 +82,7 @@ python3 automated-diff.py
 
 5. **Command Execution**
    The script connects to each host listed in `hosts.txt`, executes commands, and saves outputs as `.pre` or `.post` files.
+   After after Pre-check  - consolidated output is written to hostname.precheck
 
 6. **Diff Operation** (Post Check Only)
    For Post checks, `.pre` and `.post` files are compared, and results are saved in a consolidated `.out` file per host.
@@ -144,4 +155,5 @@ This project is licensed under the MIT License by Pete Link. See `LICENSE` for d
 ---
 
 ## Contact
-For questions or feedback, please reach out to Pete Link or open a GitHub issue:  https://www.linkedin.com/in/petelink/
+
+For questions or suggestions, contact [Pete Link] via Github  https://github.com/Pete1001

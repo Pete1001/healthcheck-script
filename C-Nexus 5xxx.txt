@@ -1,0 +1,50 @@
+terminal length 0
+show run include-switch-profile
+show vrf
+show license
+show license usage
+show inventory
+show version
+show module
+show interface brief
+show interface description
+show port-channel summary
+show vpc
+show vpc brief
+show environment
+show mac address-table
+show cdp neighbor
+show lldp neighbor
+show logging last 5000
+show accounting log | last 500 | ex "ssh session closed"
+show ip bgp summary vrf all | inc [0-9,1-3].[0-9,1-3].[0-9,1-3]
+show ipv6 bgp summary vrf all | inc [a-f0-9,1-4]:[a-f0-9,1-4]
+show diagnostic result module all
+show run include-switch-profile | count
+show run | inc feature | count
+show vrf detail | inc Name | inc Up | count
+sh mod | inc N5 | count
+sh mod | inc N5 | inc active|ok | count
+show interface brief | inc up | count
+show interface brief | inc down | count
+show port-channel summary | inc LACP|NONE | count
+show environment fan | inc Chassis|PS | count
+show environment fan | inc Chassis|PS | inc ok | count
+show environment temperature | inc 110|74|67|65 | count
+show environment temperature | inc 110|74|67|65 | inc ok | count
+sh mac address-table | inc dynamic | count
+show processes cpu sort | head
+show processes memory shared | inc totals
+sh vpc brief | inc domain|switch|keep-alive|fabricpath|consistency|role|ateway
+show vpc | inc up
+show ip bgp summary vrf all | inc [0-9,1-3].[0-9,1-3].[0-9,1-3] | count
+show ipv6 bgp summary vrf all | inc [a-f0-9,1-4]:[a-f0-9,1-4] | count
+sh fex | inc [0-9] | count
+sh fex | inc Online | count
+show environment fex all | inc Center|side|Die|Control|Chassis|PS|PAC | ex "PS Model" | count
+show environment fex all | inc Center|side|Die|Control|Chassis|PS|PAC | ex "PS Model" | include ok | count
+show fabricpath switch-id | inc Primary | count
+show ip pim interface vrf all | count
+show ip pim neighbor vrf all | count
+show ipv6 pim interface vrf all | count
+show ipv6 pim neighbor vrf all | count
