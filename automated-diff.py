@@ -150,21 +150,22 @@ def main():
     # Perform diff for Post health check
     if health_check_type == "post":
         print("\nPerforming diff for post health check...\n")
-        for command in commands:
-            command_safe = command.replace(' ', '_').replace('|', '').replace('/', '_')
-            diff_output_file = os.path.join(ticket_number, "diff.out")
-
-            with open(diff_output_file, "a") as diff_out:
-                for host in hosts:
+        for host in hosts:
+            diff_output_file = os.path.join(ticket_number, f"{host}.out")
+            with open(diff_output_file, "w") as diff_out:
+                for command in commands:
+                    command_safe = command.replace(' ', '_').replace('|', '').replace('/', '_')
                     pre_file = os.path.join(ticket_number, f"{host}-{command_safe}.pre")
                     post_file = os.path.join(ticket_number, f"{host}-{command_safe}.post")
 
                     if not os.path.exists(pre_file):
                         logger.warning(f"{pre_file} not found for {host}. Skipping diff.")
+                        diff_out.write(f"{command} - [WARNING] Pre file not found.\n-------------------------------\n")
                         continue
 
                     if not os.path.exists(post_file):
                         logger.warning(f"{post_file} not found for {host}. Skipping diff.")
+                        diff_out.write(f"{command} - [WARNING] Post file not found.\n-------------------------------\n")
                         continue
 
                     with open(pre_file, "r") as pre, open(post_file, "r") as post:
@@ -172,13 +173,12 @@ def main():
                         post_lines = post.readlines()
                         diff = difflib.unified_diff(pre_lines, post_lines, fromfile=pre_file, tofile=post_file)
                         diff_output = "".join(diff)
+                        diff_out.write(f"Command: {command}\n")
                         if diff_output:
-                            diff_out.write(f"{command} - Host: {host}\n")
                             diff_out.write(diff_output)
-                            diff_out.write("\n-----------------\n")
                         else:
-                            diff_out.write(f"{command} - Host: {host}\n[INFO] No differences detected.\n")
-                            diff_out.write("\n-----------------\n")
+                            diff_out.write("[INFO] No differences detected.\n")
+                        diff_out.write("\n-------------------------------\n")
 
     # Summary of operations
     print("\nAll done! Have a nice day!")
