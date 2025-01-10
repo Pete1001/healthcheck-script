@@ -71,7 +71,6 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
     Execute commands on a host via SSH and save output to separate files.
     Additionally, create a consolidated .precheck or .postcheck file.
     """
-
     try:
         logger.info(f"Attempting to connect to {host}...")
         ssh = paramiko.SSHClient()
@@ -81,11 +80,18 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
 
         # Open an interactive shell session
         ssh_shell = ssh.invoke_shell()
-        ssh_shell.settimeout(30) # Timeout for shell interactions
+        ssh_shell.settimeout(30)  # Timeout for shell interactions
 
         # Check if the shell is active
         if not ssh_shell.active:
             raise RuntimeError("SSH shell session is not active.")
+
+        # Clear the logging buffer before executing commands
+        logger.info(f"[{host}] Clearing logging buffer...")
+        ssh_shell.send("clear logging\n")
+        time.sleep(COMMAND_DELAY)
+        while ssh_shell.recv_ready():  # Flush any remaining buffer data
+            ssh_shell.recv(65535)
 
         # Create consolidated .precheck or .postcheck file
         consolidated_file = None
@@ -101,29 +107,37 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
         for command in commands:
             logger.info(f"[{host}] Running command: {command}")
             ssh_shell.send(command + "\n")
-            time.sleep(COMMAND_DELAY)  # Configurable delay for command execution
-            if ssh_shell.recv_ready():
-                output = ssh_shell.recv(65535).decode('utf-8')
-                # Write each command's output to a separate file
-                command_safe = command.replace(' ', '_').replace('|', '').replace('/', '_')
-                output_file = os.path.join(ticket_number, f"{host}-{command_safe}.{health_check_type}")
-                try:
-                    with open(output_file, "w") as out:
-                        out.write(output)
-                    logger.info(f"[{host}] Output written to {output_file}")
-                except IOError as e:
-                    logger.error(f"[{host}] Failed to write output file: {output_file}. Error: {e}")
+            time.sleep(COMMAND_DELAY + 3)  # Allow additional time for long outputs
 
-                # Append to consolidated .precheck or .postcheck file
-                if consolidated_file:
-                    try:
-                        with open(consolidated_file, "a") as consolidated:
-                            consolidated.write(f"Command: {command}\n{output}\n{SEPARATOR}\n")
-                        logger.info(f"[{host}] Command output appended to {consolidated_file}.")
-                    except IOError as e:
-                        logger.error(f"[{host}] Failed to write to consolidated file: {consolidated_file}. Error: {e}")
-            else:
+            # Increase buffer size and retrieve command output
+            output = ""
+            if ssh_shell.recv_ready():
+                while ssh_shell.recv_ready():
+                    output += ssh_shell.recv(65535).decode('utf-8')
+
+            # Ensure output is not empty
+            if not output.strip():
                 logger.warning(f"[{host}] No output received for command: {command}")
+                continue
+
+            # Write each command's output to a separate file
+            command_safe = command.replace(' ', '_').replace('|', '').replace('/', '_')
+            output_file = os.path.join(ticket_number, f"{host}-{command_safe}.{health_check_type}")
+            try:
+                with open(output_file, "w") as out:
+                    out.write(output)
+                logger.info(f"[{host}] Output written to {output_file}")
+            except IOError as e:
+                logger.error(f"[{host}] Failed to write output file: {output_file}. Error: {e}")
+
+            # Append to consolidated .precheck or .postcheck file
+            if consolidated_file:
+                try:
+                    with open(consolidated_file, "a") as consolidated:
+                        consolidated.write(f"Command: {command}\n{output}\n{SEPARATOR}\n")
+                    logger.info(f"[{host}] Command output appended to {consolidated_file}.")
+                except IOError as e:
+                    logger.error(f"[{host}] Failed to write to consolidated file: {consolidated_file}. Error: {e}")
 
         ssh.close()
         logger.info(f"SSH session closed for {host}.")
