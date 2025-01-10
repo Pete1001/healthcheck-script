@@ -91,6 +91,13 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
         while ssh_shell.recv_ready():  # Flush any residual output
             ssh_shell.recv(65535)
 
+        # Send a no-op command to initialize the session properly
+        logger.info(f"[{host}] Sending a no-op command to initialize session.")
+        ssh_shell.send("\n")
+        time.sleep(1)
+        while ssh_shell.recv_ready():
+            ssh_shell.recv(65535)
+
         # Clear the logging buffer before executing commands
         logger.info(f"[{host}] Clearing logging buffer...")
         ssh_shell.send("clear logging\n")
@@ -109,10 +116,15 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
             logger.info(f"Consolidated file will be created: {consolidated_file}")
 
         # Execute commands
+        first_command = True
         for command in commands:
             logger.info(f"[{host}] Running command: {command}")
             ssh_shell.send(command + "\n")
-            time.sleep(COMMAND_DELAY + 2)  # Allow additional time for long outputs
+            if first_command:
+                time.sleep(COMMAND_DELAY + 5)  # Additional delay for the first command
+                first_command = False
+            else:
+                time.sleep(COMMAND_DELAY + 2)  # Standard delay
 
             # Increase buffer size and retrieve command output
             output = ""
