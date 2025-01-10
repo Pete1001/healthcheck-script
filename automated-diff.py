@@ -86,6 +86,11 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
         if not ssh_shell.active:
             raise RuntimeError("SSH shell session is not active.")
 
+        # Add a delay to ensure the shell is ready
+        time.sleep(2)  # Initial delay for shell readiness
+        while ssh_shell.recv_ready():  # Flush any residual output
+            ssh_shell.recv(65535)
+
         # Clear the logging buffer before executing commands
         logger.info(f"[{host}] Clearing logging buffer...")
         ssh_shell.send("clear logging\n")
@@ -99,7 +104,7 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
             consolidated_file = os.path.join(ticket_number, f"{host}.precheck")
         elif health_check_type == "post":
             consolidated_file = os.path.join(ticket_number, f"{host}.postcheck")
-        
+
         if consolidated_file:
             logger.info(f"Consolidated file will be created: {consolidated_file}")
 
@@ -107,7 +112,7 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
         for command in commands:
             logger.info(f"[{host}] Running command: {command}")
             ssh_shell.send(command + "\n")
-            time.sleep(COMMAND_DELAY + 3)  # Allow additional time for long outputs
+            time.sleep(COMMAND_DELAY + 2)  # Allow additional time for long outputs
 
             # Increase buffer size and retrieve command output
             output = ""
