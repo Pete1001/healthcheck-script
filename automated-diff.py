@@ -118,6 +118,8 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
 
         # Execute commands
         for index, command in enumerate(commands):
+            # Add a blank line for clarity in the screen log
+            logger.info("")  # Blank line
             logger.info(f"[{host}] Preparing to run command: {command}")
 
             # Explicitly flush the input buffer
