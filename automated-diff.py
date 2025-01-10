@@ -91,21 +91,22 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
         while ssh_shell.recv_ready():  # Flush any residual output
             ssh_shell.recv(65535)
 
-        # Send a no-op command to initialize the session properly
-        logger.info(f"[{host}] Sending a no-op command to initialize session.")
-        ssh_shell.send("\n")
-        time.sleep(1)
+        # Send a marker command to confirm readiness
+        logger.info(f"[{host}] Sending readiness marker.")
+        ssh_shell.send('echo "READY"\n')
+        time.sleep(2)
+        while ssh_shell.recv_ready():
+            readiness_output = ssh_shell.recv(65535).decode('utf-8')
+        logger.info(f"[{host}] Readiness marker output: {readiness_output}")
+
+        # Clear the logging buffer
+        logger.info(f"[{host}] Clearing logging buffer.")
+        ssh_shell.send("clear logging\n")
+        time.sleep(3)
         while ssh_shell.recv_ready():
             ssh_shell.recv(65535)
 
-        # Clear the logging buffer before executing commands
-        logger.info(f"[{host}] Clearing logging buffer...")
-        ssh_shell.send("clear logging\n")
-        time.sleep(COMMAND_DELAY)
-        while ssh_shell.recv_ready():  # Flush any remaining buffer data
-            ssh_shell.recv(65535)
-
-        # Create consolidated .precheck or .postcheck file
+        # Create consolidated output file
         consolidated_file = None
         if health_check_type == "pre":
             consolidated_file = os.path.join(ticket_number, f"{host}.precheck")
@@ -116,26 +117,35 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
             logger.info(f"Consolidated file will be created: {consolidated_file}")
 
         # Execute commands
-        first_command = True
-        for command in commands:
-            logger.info(f"[{host}] Running command: {command}")
-            ssh_shell.send(command + "\n")
-            if first_command:
-                time.sleep(COMMAND_DELAY + 5)  # Additional delay for the first command
-                first_command = False
-            else:
-                time.sleep(COMMAND_DELAY + 2)  # Standard delay
+        for index, command in enumerate(commands):
+            logger.info(f"[{host}] Preparing to run command: {command}")
 
-            # Increase buffer size and retrieve command output
+            # Explicitly flush the input buffer
+            while ssh_shell.recv_ready():
+                ssh_shell.recv(65535)
+
+            # Send the command in parts to ensure proper transmission
+            ssh_shell.send(command)
+            time.sleep(0.1)  # Small pause to ensure the command is fully received
+            ssh_shell.send("\n")
+            logger.debug(f"[{host}] Command sent: {command}")
+
+            # Add an additional delay for the first command
+            if index == 0:
+                time.sleep(COMMAND_DELAY + 5)
+            else:
+                time.sleep(COMMAND_DELAY + 2)
+
+            # Retrieve the output
             output = ""
             if ssh_shell.recv_ready():
                 while ssh_shell.recv_ready():
                     output += ssh_shell.recv(65535).decode('utf-8')
 
-            # Ensure output is not empty
+            # Ensure output is logged even if empty
             if not output.strip():
                 logger.warning(f"[{host}] No output received for command: {command}")
-                continue
+                output = "[INFO] No output received."
 
             # Write each command's output to a separate file
             command_safe = command.replace(' ', '_').replace('|', '').replace('/', '_')
@@ -147,7 +157,7 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
             except IOError as e:
                 logger.error(f"[{host}] Failed to write output file: {output_file}. Error: {e}")
 
-            # Append to consolidated .precheck or .postcheck file
+            # Append to consolidated output file
             if consolidated_file:
                 try:
                     with open(consolidated_file, "a") as consolidated:
