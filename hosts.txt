@@ -1,2 +1,4 @@
-nycmnywi-mdc-tvro-sw1
-nycmnywi-mdc-tvro-sw2
+192.168.0.1
+10.0.0.1
+router-a
+switch-b
