@@ -38,7 +38,7 @@ from getpass import getpass
 
 # Global separator for consistent formatting
 SEPARATOR = '-' * 60
-COMMAND_DELAY = 2  # Seconds
+COMMAND_DELAY = 3  # Seconds
 
 # Configure logging
 logging.basicConfig(
@@ -87,7 +87,7 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
             raise RuntimeError("SSH shell session is not active.")
 
         # Add a delay to ensure the shell is ready
-        time.sleep(2)  # Initial delay for shell readiness
+        time.sleep(5)  # Initial delay for shell readiness
         while ssh_shell.recv_ready():  # Flush any residual output
             ssh_shell.recv(65535)
 
