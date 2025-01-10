@@ -93,7 +93,7 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
 
         # Send a marker command to confirm readiness
         logger.info(f"[{host}] Sending readiness marker.")
-        ssh_shell.send('echo "READY"\n')
+        ssh_shell.send("\n\n\n")  # Send 3x newlines to clear and prepare the shell
         time.sleep(2)
         while ssh_shell.recv_ready():
             readiness_output = ssh_shell.recv(65535).decode('utf-8')
@@ -101,7 +101,7 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
 
         # Clear the logging buffer
         logger.info(f"[{host}] Clearing logging buffer.")
-        ssh_shell.send("clear logging\n")
+        ssh_shell.send("\n\n\nclear logging\n\n\n")  # Send 3x newlines before and after the command
         time.sleep(3)
         while ssh_shell.recv_ready():
             ssh_shell.recv(65535)
@@ -124,10 +124,12 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
             while ssh_shell.recv_ready():
                 ssh_shell.recv(65535)
 
-            # Send the command in parts to ensure proper transmission
-            ssh_shell.send(command)
-            time.sleep(0.1)  # Small pause to ensure the command is fully received
-            ssh_shell.send("\n")
+            # Send 3x newlines before the command
+            ssh_shell.send("\n\n\n")
+            time.sleep(0.1)
+
+            # Send the command and 3x newlines after
+            ssh_shell.send(command + "\n\n\n")
             logger.debug(f"[{host}] Command sent: {command}")
 
             # Add an additional delay for the first command
