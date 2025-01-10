@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 '''
 # automated-diff.py
 #
@@ -140,11 +140,38 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
 
 def main():
     print("\nAutomated Pre and Post Health Check Script")
-    print("=" * 60)
+    print("=" * 80)
     print("\nThis script requires the following files in the current directory:")
-    print("- `hosts.txt`: List of hosts (one per line).")
-    print("- Device-specific command files for each type of equipment.")
+    print('')
+    print("         -`hosts.txt`:             - List of hosts (one per line).")
+    print("         -`C_ASR9K.txt`:           - Cisco ASR9K")
+    print("         -`C-CRS.txt`:             - Cisco CRS")
+    print("         -`CC_2960.txt`:           - Cisco Catalyst 2960")
+    print("         -`CC_3850.txt`:           - Cisco Catalyst 3850")
+    print("         -`CC_4500-X.txt`:         - Cisco Catalyst 4500-X")
+    print("         -`CC_49xx.txt`:           - Cisco Catalyst 49xx")
+    print("         -`CC_65xx-76xx.txt`:      - Cisco Catalyst 65xx or 76xx")
+    print("         -`C-Nexus 5xxx.txt`:      - Cisco Nexus 5xxx")
+    print("         -`C-Nexus 7xxx.txt`:      - Cisco Nexus 7xxx")
+    print("         -`C-Nexus 93xx-95xx.txt`: - Cisco Nexus 93xx/95xx")
+    print('')
     print("\nEnsure all required files are present before proceeding.\n")
+    print("=" * 80)
+    print('Please NOTE:')
+    print("=" * 80)
+    print('')
+    print("You can only use this for 'LIKE' devices, so ensure that hosts.txt only contains devices of a single 'type'")
+    print('Healththeck and Pre-check output files of all commands are written to individual files with `.pre` extension (bunch of individual files)')
+    print('Healthcheck and Post-check output files of all commands are written to individual files with `.post` extension (bunch of individual files)')
+    print('')
+    print("-" * 80)
+    print('Consolidated output of all commands for Healtcheck and Pre-check is written to a single file (for each device) with `.precheck` extension')
+    print('Consolidated output of all commands for Healtcheck and Post-check is written to a single file (for each device) with `.postcheck` extension')
+    print('')
+    print('Consolidated `diff` between Pre and Post Healthchecks as well as between Pre and Post checks is written to a file with `.out` extension (for each device)')
+    print("-" * 80)
+    print('')
+    print("=" * 80)
 
     # Ask for the ticket number and create the directory
     ticket_number = input("Please enter the ticket that you are working on (e.g., 'NAASOPS-xxxx'): ").strip()
@@ -173,8 +200,10 @@ def main():
 
     # Prompt for Pre or Post health check
     print("\nAre you performing a Pre or Post health check?")
+    print('')
     print("  - Pre: Collects initial configuration data.")
     print("  - Post: Collects final configuration data and compares it to Pre.")
+    print('')
     health_check_type = input("Enter your choice (Pre/Post): ").strip().lower()
 
     if health_check_type not in ["pre", "post"]:
@@ -197,7 +226,7 @@ def main():
 
     equipment_choice = input("\nEnter your choice (1-10): ").strip()
     device_files = {
-        "1": "C_ASR9K.txt",
+        "1": "C-ASR9K.txt",
         "2": "C-CRS.txt",
         "3": "CC_2960.txt",
         "4": "CC_3850.txt",
@@ -296,18 +325,21 @@ def main():
 
     # Summary of processed hosts
     print("\nSummary of Processed Hosts:")
+    print('')
     processed_count = len(hosts) - len(unreachable_hosts)
     failed_count = len(unreachable_hosts)
 
-    print(f"Processed {processed_count} hosts successfully.")
+    print(f" Processed {processed_count} hosts successfully.")
     if failed_count > 0:
-        print(f"Failed to process {failed_count} hosts:")
+        print(f"    -Failed to process {failed_count} hosts:")
+        print('')
         for host in unreachable_hosts:
             print(f" - {host}")
         # Log unreachable hosts
         logger.info(f"Failed to process {failed_count} hosts: {', '.join(unreachable_hosts)}")
     else:
-        print("No failures. All hosts were processed successfully.")
+        print("    -No failures. All hosts were processed successfully.")
+        print('')
         logger.info("All hosts were processed successfully.")
 
     if health_check_type == "pre":
