@@ -28,7 +28,6 @@ hosts.txt must be named "hosts.txt".  The file must be located in the current di
         92.168.0.1
         192.168.0.2
 '''
-#
 import os
 import logging
 import difflib
@@ -240,24 +239,21 @@ def main():
             return
 
         # Step 3: User confirmation to proceed with health check
-        confirmation = input("
-Do you want to proceed with the health check for these hosts? (y/n): ").strip().lower()
+        confirmation = input("Do you want to proceed with the health check for these hosts? (y/n): ").strip().lower()
         if confirmation != 'y':
             print_colored("[INFO] Operation cancelled by user.", Color.YELLOW)
             logger.info("User cancelled the operation.")
             return
 
         # Step 4: Continue with SSH commands (Just a sample command)
-        username = input("
-Enter your SSH username: ").strip()
+        username = input("Enter your SSH username: ").strip()
         password = getpass("Enter your SSH password: ")
 
         # Example: Adding a sample command for health check
         commands = ["show version", "show interfaces"]
 
         for host in hosts:
-            print(f"
-Starting health check for {host}")
+            print(f"Starting health check for {host}")
             error = ssh_command(host, username, password, commands, "ticket_001", "precheck")
             if error:
                 logger.error(f"Could not process host {host}. Error: {error}")
