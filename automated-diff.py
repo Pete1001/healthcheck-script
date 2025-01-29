@@ -211,13 +211,62 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
         print_colored(error_msg, Color.RED)
         return error_msg
 
-# Main program to execute health checks
 def main():
     try:
         logger.info("Script started")
-        # Add your main logic here
-        # Example code:
-        print("Hello World")
+
+        # Step 1: Read hosts from hosts.txt
+        with open("hosts.txt", "r") as hf:
+            hosts = [line.strip() for line in hf if line.strip()]
+
+        if not hosts:
+            logger.error("No hosts found in hosts.txt. Exiting.")
+            print_colored("[ERROR] No hosts found in hosts.txt.", Color.RED)
+            return
+
+        # Step 2: Ping the hosts to ensure they're reachable
+        unreachable_hosts = []
+        for host in hosts:
+            logger.info(f"Pinging {host}...")
+            print(f"Pinging {host}...")
+            if not ping_host(host):
+                unreachable_hosts.append(host)
+                logger.error(f"Host {host} is unreachable.")
+                print_colored(f"[ERROR] Host {host} is unreachable.", Color.RED)
+
+        if unreachable_hosts:
+            logger.error(f"Unreachable hosts: {', '.join(unreachable_hosts)}. Exiting.")
+            print_colored(f"[ERROR] Unreachable hosts: {', '.join(unreachable_hosts)}.", Color.RED)
+            return
+
+        # Step 3: User confirmation to proceed with health check
+        confirmation = input("
+Do you want to proceed with the health check for these hosts? (y/n): ").strip().lower()
+        if confirmation != 'y':
+            print_colored("[INFO] Operation cancelled by user.", Color.YELLOW)
+            logger.info("User cancelled the operation.")
+            return
+
+        # Step 4: Continue with SSH commands (Just a sample command)
+        username = input("
+Enter your SSH username: ").strip()
+        password = getpass("Enter your SSH password: ")
+
+        # Example: Adding a sample command for health check
+        commands = ["show version", "show interfaces"]
+
+        for host in hosts:
+            print(f"
+Starting health check for {host}")
+            error = ssh_command(host, username, password, commands, "ticket_001", "precheck")
+            if error:
+                logger.error(f"Could not process host {host}. Error: {error}")
+                print_colored(f"[ERROR] Could not process host {host}.", Color.RED)
+                continue
+
+        print_colored("[INFO] Health check completed.", Color.GREEN)
+        logger.info("Health check completed.")
+
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         print_colored(f"[ERROR] {e}", Color.RED)
