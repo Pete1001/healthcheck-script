@@ -48,8 +48,8 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("healthcheck.log"),
-        logging.StreamHandler()
+        logging.StreamHandler(),
+        logging.FileHandler("healthcheck.log")
     ]
 )
 logger = logging.getLogger(__name__)
@@ -213,8 +213,14 @@ def ssh_command(host, username, password, commands, ticket_number, health_check_
 
 # Main program to execute health checks
 def main():
-    # ... (rest of your code from the main function)
-    pass
+    try:
+        logger.info("Script started")
+        # Add your main logic here
+        # Example code:
+        print("Hello World")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        print_colored(f"[ERROR] {e}", Color.RED)
 
 if __name__ == "__main__":
     main()
