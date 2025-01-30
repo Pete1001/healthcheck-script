@@ -28,6 +28,7 @@ hosts.txt must be named "hosts.txt".  The file must be located in the current di
         92.168.0.1
         192.168.0.2
 '''
+#
 import os
 import logging
 import difflib
@@ -95,12 +96,12 @@ def run_diff(folder_name, hostname):
             diff = list(difflib.unified_diff(pre_content, post_content, lineterm=''))
 
             if diff:
-                differences.append(f"--- Differences in {pre_file.replace('.pre', '')} ---" + "".join(diff))
+                differences.append(f"--- Differences in {pre_file.replace('.pre', '')} ---\n" + "\n".join(diff))
 
     if differences:
         out_file = os.path.join(folder_name, f"{hostname}.out")
         with open(out_file, 'w') as out_f:
-            out_f.write("".join(differences))
+            out_f.write("\n\n".join(differences))
         print_colored(f"[INFO] Differences found for {hostname}. Consolidated diff saved to {hostname}.out", Color.YELLOW)
         logger.info(f"Consolidated diff saved to {out_file}")
     else:
@@ -173,13 +174,12 @@ def ssh_command(host, username, password, commands, folder_name, health_check_ty
             except IOError as e:
                 logger.error(f"[{host}] Failed to write output file: {output_file}. Error: {e}")
 
-            consolidated_output.append(f"--- {command} ---
-{output}")
+            consolidated_output.append(f"--- {command} ---\n{output}")
 
         # Write consolidated precheck or postcheck file for the host
         consolidated_file = os.path.join(folder_name, f"{host}.{health_check_type}check")
         with open(consolidated_file, "w") as cf:
-            cf.write("".join(consolidated_output))
+            cf.write("\n\n".join(consolidated_output))
         logger.info(f"Consolidated {health_check_type}check file written: {consolidated_file}")
 
         ssh.close()
