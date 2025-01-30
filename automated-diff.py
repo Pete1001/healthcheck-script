@@ -38,233 +38,186 @@ import re
 from getpass import getpass
 import sys
 
-# Global separator for consistent formatting
 SEPARATOR = '-' * 60
-COMMAND_DELAY = 3  # Seconds
+COMMAND_DELAY = 3
 
 # Configure logging
+log_level = logging.INFO
+
+if '--verbose' in sys.argv:
+    log_level = logging.DEBUG
+    verbose_logging = True
+else:
+    verbose_logging = False
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=log_level,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),
+        logging.StreamHandler() if verbose_logging else logging.NullHandler(),
         logging.FileHandler("healthcheck.log")
     ]
 )
 logger = logging.getLogger(__name__)
 
-# Add color codes for different log levels
+# Color definitions
 class Color:
     RED = '\033[91m'
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
     BLUE = '\033[94m'
+    PURPLE = '\033[95m'
     RESET = '\033[0m'
 
 def print_colored(text, color):
-    """
-    Prints the given text in the specified color.
-    """
     print(f"{color}{text}{Color.RESET}")
 
-def spinning_cursor():
-    while True:
-        for cursor in '|/-\\':
-            yield cursor
+def sanitize_filename(command):
+    return command.replace(" ", "_").replace("|", "").replace("/", "_")
 
-spinner = spinning_cursor()
+def run_diff(folder_name, hostname):
+    """
+    Compare pre and post files for each command and generate a consolidated .out file per host.
+    """
+    precheck_files = [f for f in os.listdir(folder_name) if f.startswith(hostname) and f.endswith('.pre')]
+    postcheck_files = [f.replace('.pre', '.post') for f in precheck_files]
 
-def validate_username(username):
-    """
-    Validate the username to ensure it does not contain spaces.
-    """
-    if ' ' in username:
-        print_colored("[ERROR] Invalid username. Spaces are not allowed.", Color.RED)
-        return False
-    return True
+    differences = []
+    for pre_file, post_file in zip(precheck_files, postcheck_files):
+        pre_path = os.path.join(folder_name, pre_file)
+        post_path = os.path.join(folder_name, post_file)
 
-def ping_host(host):
+        if os.path.exists(post_path):
+            with open(pre_path, 'r') as pre_f, open(post_path, 'r') as post_f:
+                pre_content = pre_f.readlines()
+                post_content = post_f.readlines()
+
+            diff = list(difflib.unified_diff(pre_content, post_content, lineterm=''))
+
+            if diff:
+                differences.append(f"--- Differences in {pre_file.replace('.pre', '')} ---" + "".join(diff))
+
+    if differences:
+        out_file = os.path.join(folder_name, f"{hostname}.out")
+        with open(out_file, 'w') as out_f:
+            out_f.write("".join(differences))
+        print_colored(f"[INFO] Differences found for {hostname}. Consolidated diff saved to {hostname}.out", Color.YELLOW)
+        logger.info(f"Consolidated diff saved to {out_file}")
+    else:
+        print_colored(f"[INFO] No differences found for {hostname}", Color.GREEN)
+        logger.info(f"No differences found for {hostname}")
+
+def ssh_command(host, username, password, commands, folder_name, health_check_type):
     """
-    Ping a host to check if it is reachable. Returns True if reachable, False otherwise.
+    Execute each command separately, save individual .pre and .post files, and generate a consolidated precheck/postcheck per host.
     """
     try:
-        response = subprocess.run(
-            ['ping', '-c', '1', host], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        if response.returncode == 0:
-            return True
-        else:
-            return False
-    except Exception as e:
-        return False
-
-def ssh_command(host, username, password, commands, ticket_number, health_check_type):
-    """
-    Execute commands on a host via SSH and save output to separate files.
-    Additionally, create a consolidated .precheck or .postcheck file.
-    """
-    try:
-        logger.info(f"Attempting to connect to {host}...")
+        logger.info(f"Connecting to {host}...")
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(host, username=username, password=password, timeout=20)
         
-        # Add a brief pause to ensure authentication is complete
-        time.sleep(2)  # Short pause for authentication to settle
-        
-        # Check if the connection was successful (authentication check)
+        time.sleep(2)
+
         if ssh.get_transport().is_active():
             print_colored(f"[INFO] Successfully authenticated to {host}.", Color.GREEN)
         else:
-            print_colored(f"[ERROR] Authentication failed for {host}. Please check your username/password.", Color.RED)
+            print_colored(f"[ERROR] Authentication failed for {host}.", Color.RED)
             logger.error(f"Authentication failed for {host}. Exiting.")
-            return "[ERROR] Authentication failed."
-        
-        # Open an interactive shell session
+            return
+
         ssh_shell = ssh.invoke_shell()
-        ssh_shell.settimeout(30)  # Timeout for shell interactions
+        ssh_shell.settimeout(30)
+        time.sleep(5)
 
-        # Check if the shell is active
-        if not ssh_shell.active:
-            raise RuntimeError("SSH shell session is not active.")
-
-        # Add a delay to ensure the shell is ready
-        time.sleep(5)  # Initial delay for shell readiness
-        while ssh_shell.recv_ready():  # Flush any residual output
-            ssh_shell.recv(65535)
-
-        # Send a marker command to confirm readiness
-        logger.info(f"[{host}] Sending readiness marker.")
-        ssh_shell.send("\n\n\n")  # Send 3x newlines to clear and prepare the shell
-        time.sleep(2)
-        while ssh_shell.recv_ready():
-            readiness_output = ssh_shell.recv(65535).decode('utf-8')
-        logger.info(f"[{host}] Readiness marker output: {readiness_output}")
-
-        # Clear the logging buffer
-        logger.info(f"[{host}] Clearing logging buffer.")
-        ssh_shell.send("\n\n\nclear logging\n\n\n")  # Send 3x newlines before and after the command
-        time.sleep(3)
         while ssh_shell.recv_ready():
             ssh_shell.recv(65535)
 
-        # Execute commands
+        consolidated_output = []
+
         for index, command in enumerate(commands):
-            print(next(spinner), end='\r')  # Show spinning cursor on screen during execution
-            sys.stdout.flush()
+            command_safe = sanitize_filename(command)
+
+            if not verbose_logging:
+                print(next(spinner), end='\r')
+                sys.stdout.flush()
+
+            logger.info(f"Executing command: {command} on {host}")
 
             while ssh_shell.recv_ready():
                 ssh_shell.recv(65535)
 
-            # Send 3x newlines before the command
             ssh_shell.send("\n\n\n")
             time.sleep(0.1)
-
-            # Send the command and 3x newlines after
             ssh_shell.send(command + "\n\n\n")
-            logger.debug(f"[{host}] Command sent: {command}")
 
-            # Add an additional delay for the first command
-            if index == 0:
-                time.sleep(COMMAND_DELAY + 5)
-            else:
-                time.sleep(COMMAND_DELAY + 2)
+            time.sleep(COMMAND_DELAY + (5 if index == 0 else 2))
 
-            # Retrieve the output
             output = ""
             if ssh_shell.recv_ready():
                 while ssh_shell.recv_ready():
                     output += ssh_shell.recv(65535).decode('utf-8')
 
-            # Ensure output is logged even if empty
             if not output.strip():
                 print_colored(f"[INFO] No output received for command: {command}", Color.YELLOW)
                 logger.warning(f"[{host}] No output received for command: {command}")
-                output = "[INFO] No output received."
             else:
                 print_colored(f"[INFO] Command completed: {command}", Color.GREEN)
 
-            # Write each command's output to a separate file
-            command_safe = command.replace(' ', '_').replace('|', '').replace('/', '_')
-            output_file = os.path.join(ticket_number, f"{host}-{command_safe}.{health_check_type}")
+            # Write each command's output to a separate .pre or .post file
+            output_file = os.path.join(folder_name, f"{host}-{command_safe}.{health_check_type}")
             try:
                 with open(output_file, "w") as out:
                     out.write(output)
                 logger.info(f"[{host}] Output written to {output_file}")
             except IOError as e:
                 logger.error(f"[{host}] Failed to write output file: {output_file}. Error: {e}")
-                
+
+            consolidated_output.append(f"--- {command} ---
+{output}")
+
+        # Write consolidated precheck or postcheck file for the host
+        consolidated_file = os.path.join(folder_name, f"{host}.{health_check_type}check")
+        with open(consolidated_file, "w") as cf:
+            cf.write("".join(consolidated_output))
+        logger.info(f"Consolidated {health_check_type}check file written: {consolidated_file}")
+
         ssh.close()
         logger.info(f"SSH session closed for {host}.")
-        return None  # No errors
-    except paramiko.ssh_exception.AuthenticationException:
-        error_msg = "[ERROR] Authentication failed. Please check your username or password."
-        print_colored(error_msg, Color.RED)
-        return error_msg
-    except paramiko.ssh_exception.NoValidConnectionsError:
-        error_msg = "[ERROR] Unable to connect to host. Check if the device is reachable."
-        print_colored(error_msg, Color.RED)
-        return error_msg
+    except paramiko.AuthenticationException:
+        print_colored("[ERROR] Authentication failed. Please check your username or password.", Color.RED)
+    except paramiko.NoValidConnectionsError:
+        print_colored("[ERROR] Unable to connect to host. Check if the device is reachable.", Color.RED)
     except Exception as e:
-        error_msg = f"[ERROR] {e}"
-        print_colored(error_msg, Color.RED)
-        return error_msg
+        print_colored(f"[ERROR] {e}", Color.RED)
 
 def main():
     try:
         logger.info("Script started")
 
-        # Step 1: Read hosts from hosts.txt
-        with open("hosts.txt", "r") as hf:
-            hosts = [line.strip() for line in hf if line.strip()]
+        health_check_type = input("Select health check type (pre/post): ").strip().lower()
+        folder_name = input("Enter folder name to store health check output files: ").strip()
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
 
-        if not hosts:
-            logger.error("No hosts found in hosts.txt. Exiting.")
-            print_colored("[ERROR] No hosts found in hosts.txt.", Color.RED)
+        username = input("Enter SSH username: ").strip()
+        if not username.isalnum():
+            print_colored("[ERROR] Invalid username. Only alphanumeric characters allowed.", Color.RED)
             return
 
-        # Step 2: Ping the hosts to ensure they're reachable
-        unreachable_hosts = []
-        for host in hosts:
-            logger.info(f"Pinging {host}...")
-            print(f"Pinging {host}...")
-            if not ping_host(host):
-                unreachable_hosts.append(host)
-                logger.error(f"Host {host} is unreachable.")
-                print_colored(f"[ERROR] Host {host} is unreachable.", Color.RED)
+        password = getpass("Enter SSH password: ")
+        
+        host = input("Enter the hostname or IP: ").strip()
+        commands = ["show version", "show interfaces", "show ip route"]  # Placeholder commands
 
-        if unreachable_hosts:
-            logger.error(f"Unreachable hosts: {', '.join(unreachable_hosts)}. Exiting.")
-            print_colored(f"[ERROR] Unreachable hosts: {', '.join(unreachable_hosts)}.", Color.RED)
-            return
+        ssh_command(host, username, password, commands, folder_name, health_check_type)
 
-        # Step 3: User confirmation to proceed with health check
-        confirmation = input("Do you want to proceed with the health check for these hosts? (y/n): ").strip().lower()
-        if confirmation != 'y':
-            print_colored("[INFO] Operation cancelled by user.", Color.YELLOW)
-            logger.info("User cancelled the operation.")
-            return
-
-        # Step 4: Continue with SSH commands (Just a sample command)
-        username = input("Enter your SSH username: ").strip()
-        password = getpass("Enter your SSH password: ")
-
-        # Example: Adding a sample command for health check
-        commands = ["show version", "show interfaces"]
-
-        for host in hosts:
-            print(f"Starting health check for {host}")
-            error = ssh_command(host, username, password, commands, "ticket_001", "precheck")
-            if error:
-                logger.error(f"Could not process host {host}. Error: {error}")
-                print_colored(f"[ERROR] Could not process host {host}.", Color.RED)
-                continue
-
-        print_colored("[INFO] Health check completed.", Color.GREEN)
-        logger.info("Health check completed.")
+        # If post-check is selected, run the diff for each command and consolidate differences
+        if health_check_type == "post":
+            run_diff(folder_name, host)
 
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
+        logger.error(f"Unexpected error occurred: {e}")
         print_colored(f"[ERROR] {e}", Color.RED)
 
 if __name__ == "__main__":
