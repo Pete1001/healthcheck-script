@@ -38,6 +38,7 @@ import time
 import glob
 import sys
 from getpass import getpass
+import itertools
 
 # Global separator for formatting
 SEPARATOR = '-' * 60
@@ -69,31 +70,55 @@ class Color:
 # Clear the screen
 os.system('clear' if os.name == 'posix' else 'cls')
 
-def spinner():
-    """ Generator for a simple spinner animation """
-    symbols = ["|", "\\", "-", "/"]
-    while True:
-        for symbol in symbols:
-            yield symbol
+def print_colored(message, color):
+    """ Prints a message in the specified color """
+    print(f"{color}{message}{Color.RESET}")
 
 def pause_for_user():
     """ Waits for user to press ENTER to continue. """
     input("\nPress ENTER to continue... ")
 
-def get_last_created_folder():
-    """ Find the most recently created directory in the current working directory. """
-    folders = [f for f in glob.glob("*/") if os.path.isdir(f)]
-    if not folders:
-        return None
-    return max(folders, key=os.path.getctime).rstrip("/")
+def sanitize_filename(command):
+    """ Sanitizes a command string to create safe filenames """
+    return command.replace(" ", "_").replace("|", "").replace("/", "_")
+
+def execute_and_save_output(ssh_shell, command, host, folder_name, check_type):
+    """
+    Execute a command over SSH, save its output to both individual .pre/.post files
+    and consolidate all outputs into a .precheck or .postcheck file.
+    """
+    sanitized_command = sanitize_filename(command)
+    output_file = os.path.join(folder_name, f"{host}-{sanitized_command}.{check_type}")
+    consolidated_file = os.path.join(folder_name, f"{host}.{check_type}check")
+
+    logger.info(f"[{host}] Running command: {command}")
+
+    ssh_shell.send(command + "\n")
+    time.sleep(COMMAND_DELAY)
+
+    if ssh_shell.recv_ready():
+        output = ssh_shell.recv(65535).decode('utf-8')
+
+        # Save individual output file
+        with open(output_file, "w") as out_f:
+            out_f.write(output)
+
+        # Append to consolidated precheck or postcheck file
+        with open(consolidated_file, "a") as cf:
+            cf.write(f"--- {command} ---\n{output}\n\n")
+
+    else:
+        print_colored(f"[WARNING] No output received for {command}", Color.YELLOW)
 
 def run_diff(folder_name, hostname):
-    """ Compare pre and post files for each command and generate a consolidated .out file """
-    pre_files = [f for f in os.listdir(folder_name) if f.startswith(hostname) and f.endswith('.pre')]
-    differences = []
+    """
+    Compare pre and post files for each command and generate a consolidated .out file per host.
+    """
+    precheck_files = [f for f in os.listdir(folder_name) if f.startswith(hostname) and f.endswith('.pre')]
+    postcheck_files = [f.replace('.pre', '.post') for f in precheck_files]
 
-    for pre_file in pre_files:
-        post_file = pre_file.replace('.pre', '.post')
+    differences = []
+    for pre_file, post_file in zip(precheck_files, postcheck_files):
         pre_path = os.path.join(folder_name, pre_file)
         post_path = os.path.join(folder_name, post_file)
 
@@ -103,6 +128,7 @@ def run_diff(folder_name, hostname):
                 post_content = post_f.readlines()
 
             diff = list(difflib.unified_diff(pre_content, post_content, lineterm=''))
+
             if diff:
                 differences.append(f"--- Differences in {pre_file.replace('.pre', '')} ---\n" + "\n".join(diff))
 
@@ -110,107 +136,95 @@ def run_diff(folder_name, hostname):
         out_file = os.path.join(folder_name, f"{hostname}.out")
         with open(out_file, 'w') as out_f:
             out_f.write("\n\n".join(differences))
-        print(f"{Color.YELLOW}[INFO] Differences found. Consolidated diff saved to {hostname}.out{Color.RESET}")
+        print_colored(f"[INFO] Differences found for {hostname}. Consolidated diff saved to {hostname}.out", Color.YELLOW)
         logger.info(f"Consolidated diff saved to {out_file}")
+    else:
+        print_colored(f"[INFO] No differences found for {hostname}", Color.GREEN)
+        logger.info(f"No differences found for {hostname}")
 
-def ssh_command(host, username, password, commands, folder_name, health_check_type):
-    """
-    Execute commands on a host via SSH and save output to .pre and .post files.
-    Also consolidates into .precheck and .postcheck per device.
-    """
+def ssh_command(host, username, password, commands, folder_name, check_type):
+    """ Establishes SSH connection and executes commands """
     try:
-        logger.info(f"Connecting to {host}...")
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(host, username=username, password=password, timeout=20)
-        logger.info(f"Successfully connected to {host}.")
-
-        ssh_shell = ssh.invoke_shell()
-        ssh_shell.settimeout(30)
-
-        if not ssh_shell.active:
-            raise RuntimeError("SSH shell session is not active.")
-
-        spin = spinner()
-
-        consolidated_output = []
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(host, username=username, password=password, look_for_keys=False, allow_agent=False)
+        ssh_shell = client.invoke_shell()
 
         for command in commands:
-            sanitized_command = command.replace(" ", "_").replace("|", "").replace("/", "_")
-            output_file = os.path.join(folder_name, f"{host}-{sanitized_command}.{health_check_type}")
+            execute_and_save_output(ssh_shell, command, host, folder_name, check_type)
 
-            logger.info(f"[{host}] Running command: {command}")
-
-            if not verbose_mode:
-                print(f"{Color.BLUE}[INFO] Executing: {command}{Color.RESET}", end="", flush=True)
-                for _ in range(10):  # Show the spinner while waiting
-                    print(f" {next(spin)}", end="\r", flush=True)
-                    time.sleep(0.1)
-
-            ssh_shell.send(command + "\n")
-            time.sleep(COMMAND_DELAY)
-
-            if ssh_shell.recv_ready():
-                output = ssh_shell.recv(65535).decode('utf-8')
-                with open(output_file, "w") as out:
-                    out.write(output)
-                consolidated_output.append(f"--- {command} ---\n{output}\n")
-
-            else:
-                print(f"{Color.YELLOW}[WARNING] No output received for {command}{Color.RESET}")
-
-        consolidated_file = os.path.join(folder_name, f"{host}.{health_check_type}check")
-        with open(consolidated_file, "w") as cf:
-            cf.write("\n\n".join(consolidated_output))
-
-        ssh.close()
-        logger.info(f"SSH session closed for {host}.")
-
-    except paramiko.ssh_exception.AuthenticationException:
-        print(f"{Color.RED}[ERROR] Authentication failed!{Color.RESET}")
+        client.close()
+    except Exception as e:
+        print_colored(f"[ERROR] SSH Connection failed: {e}", Color.RED)
+        logger.error(f"SSH Connection failed: {e}")
 
 def main():
     try:
         logger.info("Script started")
 
-        print("\n" + "=" * 80)
-        print(f"{Color.PURPLE}Automated Pre and Post Health Check Script{Color.RESET}")
+        print("\nAutomated Pre and Post Health Check Script")
         print("=" * 80)
-        print("\nEnsure all required files are present before proceeding.\n")
-        print("-" * 80)
 
         pause_for_user()
 
-        username = input(f"\n{Color.BLUE}Enter SSH username: {Color.RESET}").strip()
-        password = getpass(f"\n{Color.BLUE}Enter SSH password: {Color.RESET}")
+        # Equipment type selection
+        print("\nSelect the equipment type:")
+        print(" 1. Cisco ASR9K")
+        print(" 2. Cisco CRS")
+        print(" 3. Cisco Catalyst 2960")
+        print(" 4. Cisco Catalyst 3850")
+        print(" 5. Cisco Catalyst 4500-X")
+        print(" 6. Cisco Catalyst 49xx")
+        print(" 7. Cisco Catalyst 65xx or 76xx")
+        print(" 8. Cisco Nexus 5xxx")
+        print(" 9. Cisco Nexus 7xxx")
+        print("10. Cisco Nexus 93xx/95xx")
+
+        equipment_choice = input("\nEnter your choice (1-10): ").strip()
+        device_files = {
+            "1": "C-ASR9K.txt",
+            "2": "C-CRS.txt",
+            "3": "CC_2960.txt",
+            "4": "CC_3850.txt",
+            "5": "CC_4500-X.txt",
+            "6": "CC_49xx.txt",
+            "7": "CC_65xx-76xx.txt",
+            "8": "C-Nexus 5xxx.txt",
+            "9": "C-Nexus 7xxx.txt",
+            "10": "C-Nexus 93xx-95xx.txt"
+        }
+
+        if equipment_choice not in device_files:
+            print_colored("[ERROR] Invalid choice. Please restart and enter a number between 1 and 10.", Color.RED)
+            return
+
+        command_file = device_files[equipment_choice]
+        if not os.path.exists(command_file):
+            print_colored(f"[ERROR] Required file `{command_file}` is missing. Please add it and retry.", Color.RED)
+            return
+
+        with open(command_file, "r") as file:
+            commands = [line.strip() for line in file if line.strip()]
 
         health_check_type = input("Select health check type (pre/post): ").strip().lower()
-        if health_check_type == "post":
-            last_folder = get_last_created_folder()
-            if last_folder:
-                confirm = input(f"\nUse the last created folder '{last_folder}'? (Y/N): ").strip().lower()
-                folder_name = last_folder if confirm == "y" else input("Enter folder name: ").strip()
-            else:
-                print(f"{Color.YELLOW}[WARNING] No previous folders found. Enter a folder manually.{Color.RESET}")
-                folder_name = input("Enter folder name for output files: ").strip()
-        else:
-            folder_name = input("Enter the ticket number / folder name to create: ").strip()
-
+        folder_name = input("Enter folder name to store health check output files: ").strip()
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
 
-        # After post-check, inform user of output file locations
+        username = input("Enter SSH username: ").strip()
+        password = getpass("Enter SSH password: ")
+        host = input("Enter the hostname or IP: ").strip()
+
+        # Execute SSH commands
+        ssh_command(host, username, password, commands, folder_name, health_check_type)
+
+        # If post-check is selected, run the diff for each command
         if health_check_type == "post":
-            print(f"{Color.GREEN}[INFO] Post-check completed.{Color.RESET}")
-            print(f"{Color.GREEN}Consolidated post-check file: {folder_name}/<device>.postcheck{Color.RESET}")
-            print(f"{Color.GREEN}Difference report (if changes exist): {folder_name}/<device>.out{Color.RESET}")
+            run_diff(folder_name, host)
 
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        print(f"{Color.RED}[ERROR] {e}{Color.RESET}")
-
-    finally:
-        print(f"\n{Color.PURPLE}Have a nice day!{Color.RESET}")
+        logger.error(f"Unexpected error occurred: {e}")
+        print_colored(f"[ERROR] {e}", Color.RED)
 
 if __name__ == "__main__":
     main()
