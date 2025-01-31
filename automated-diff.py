@@ -39,6 +39,8 @@ import re
 from getpass import getpass
 import sys
 
+import paramiko.ssh_exception
+
 SEPARATOR = '-' * 60
 COMMAND_DELAY = 3
 
@@ -69,6 +71,16 @@ class Color:
     BLUE = '\033[94m'
     PURPLE = '\033[95m'
     RESET = '\033[0m'
+
+def spinner(message=""):
+
+    symbols = ["|", "\\", "|", "/"]
+
+    for i in range(len(symbols) * 10):
+
+        print(f"\r{message} {symbols[i % len(symbols)]}", end="")
+
+        time.sleep(0.1)  # Adjust sleep time for desired speed
 
 def print_colored(text, color):
     print(f"{color}{text}{Color.RESET}")
@@ -186,8 +198,8 @@ def ssh_command(host, username, password, commands, folder_name, health_check_ty
         logger.info(f"SSH session closed for {host}.")
     except paramiko.AuthenticationException:
         print_colored("[ERROR] Authentication failed. Please check your username or password.", Color.RED)
-    except paramiko.NoValidConnectionsError:
-        print_colored("[ERROR] Unable to connect to host. Check if the device is reachable.", Color.RED)
+    #except paramiko.ssh_exception.NoValidConnectionsError():
+    #    print_colored("[ERROR] Unable to connect to host. Check if the device is reachable.", Color.RED)
     except Exception as e:
         print_colored(f"[ERROR] {e}", Color.RED)
 
