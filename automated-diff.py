@@ -72,15 +72,11 @@ class Color:
     PURPLE = '\033[95m'
     RESET = '\033[0m'
 
-def spinner(message=""):
-
+def spinner():
     symbols = ["|", "\\", "|", "/"]
-
-    for i in range(len(symbols) * 10):
-
-        print(f"\r{message} {symbols[i % len(symbols)]}", end="")
-
-        time.sleep(0.1)  # Adjust sleep time for desired speed
+    while True:  # Infinite loop for continuous animation
+        for symbol in symbols:
+            yield symbol  # Yield instead of print
 
 def print_colored(text, color):
     print(f"{color}{text}{Color.RESET}")
@@ -152,8 +148,11 @@ def ssh_command(host, username, password, commands, folder_name, health_check_ty
             command_safe = sanitize_filename(command)
 
             if not verbose_logging:
-                print(next(spinner), end='\r')
-                sys.stdout.flush()
+                spin = spinner()  # Create the iterator
+                for _ in range(10):  # Adjust the range based on how long you want the spinner to run
+                    print(f"\r{next(spin)}", end="")
+                    sys.stdout.flush()
+                    time.sleep(0.1)  # Adjust speed as needed
 
             logger.info(f"Executing command: {command} on {host}")
 
